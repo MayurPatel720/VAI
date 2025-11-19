@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useQuery } from "@tanstack/react-query";
 import type { User, Subscription } from "../shared/schema";
+import { baseURL } from "../lib/queryClient";
 
 interface UserWithSubscription extends User {
 	firstName: any;
@@ -15,7 +16,7 @@ export function useAuth() {
 		queryKey: ["user"],
 		queryFn: async () => {
 			const token = localStorage.getItem("token");
-			const res = await fetch("http://localhost:3000/api/auth/user", {
+			const res = await fetch(`${baseURL}/api/auth/user`, {
 				headers: token ? { Authorization: `Bearer ${token}` } : {},
 				credentials: "include",
 			});
@@ -25,8 +26,6 @@ export function useAuth() {
 		},
 		retry: false,
 	});
-
-	console.log(user);
 
 	return {
 		user,

@@ -6,7 +6,10 @@ async function throwIfResNotOk(res: Response) {
 		throw new Error(`${res.status}: ${text}`);
 	}
 }
-const baseURL = "http://localhost:3000";
+// export const baseURL = "http://localhost:3000";
+export const baseURL = "https://vachanamrutai.onrender.com";
+console.log(baseURL);
+
 export async function apiRequest(
 	method: string,
 	url: string,

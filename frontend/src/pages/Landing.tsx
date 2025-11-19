@@ -17,6 +17,7 @@ import { useNavigate } from "react-router-dom";
 import PricingPlan from "./PricingPlan";
 import AboutVachanamrut from "./AboutVachanamrut";
 import Footer from "./Footer";
+import { queryClient } from "../lib/queryClient";
 
 export default function Landing() {
 	const { user, isAuthenticated } = useAuth();
@@ -37,15 +38,13 @@ export default function Landing() {
 			{/* Header */}
 			<header className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b">
 				<div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
-					<div className="flex items-center gap-3">
+					<div className="flex items-center  md:gap-3">
 						<img
 							src={logoImage}
 							alt="Vachanamrut Logo"
-							className="w-10 h-10 object-contain"
+							className="w-10 h-10 object-contain mix-blend-multiply"
 						/>
-						<h1 className="text-2xl font-serif font-semibold text-foreground">
-							Vachanamrut
-						</h1>
+						<h1 className="text-2xl font-bold text-foreground">Vachanamrut</h1>
 					</div>
 					<div className="flex items-center gap-2">
 						<ThemeToggle />
@@ -68,7 +67,7 @@ export default function Landing() {
 									</Button>
 								</DropdownMenuTrigger>
 								<DropdownMenuContent align="end">
-									<DropdownMenuLabel>
+									<DropdownMenuLabel className="bg-white z-20">
 										<div className="flex flex-col">
 											<span className="text-sm font-medium">
 												{user.firstName} {user.lastName}
@@ -83,13 +82,25 @@ export default function Landing() {
 											)}
 										</div>
 									</DropdownMenuLabel>
-									<DropdownMenuSeparator />
-									<DropdownMenuItem onClick={() => navigate("/chat")}>
+									<DropdownMenuSeparator className="bg-white z-20" />
+									<DropdownMenuItem
+										className="bg-white z-20"
+										onClick={() => navigate("/chat")}
+									>
 										<Sparkles className="mr-2 h-4 w-4" />
 										Go to Chat
 									</DropdownMenuItem>
 									<DropdownMenuItem
-										onClick={() => (window.location.href = "/api/logout")}
+										className="bg-white z-20"
+										onClick={() => {
+											localStorage.removeItem("token");
+
+											queryClient.clear(); // only if you imported queryClient
+
+											navigate("/");
+
+											window.location.reload();
+										}}
 									>
 										<LogOut className="mr-2 h-4 w-4" />
 										Logout
@@ -119,7 +130,7 @@ export default function Landing() {
 								AI-Powered Spiritual Guidance
 							</div>
 
-							<h2 className="text-4xl md:text-5xl font-serif font-bold text-foreground leading-tight">
+							<h2 className="text-4xl md:text-5xl font-sans font-bold text-foreground leading-tight">
 								Discover Divine Wisdom from Vachanamrut
 							</h2>
 
@@ -189,7 +200,7 @@ export default function Landing() {
 							<img
 								src={meditationImage}
 								alt="Spiritual Meditation"
-								className="w-full max-w-md rounded-lg opacity-90"
+								className="w-full max-w-md rounded-lg opacity-90 mix-blend-multiply"
 							/>
 						</div>
 					</div>
@@ -198,7 +209,9 @@ export default function Landing() {
 			<div className="relative w-3/4 mx-auto my-8 h-1 overflow-hidden rounded-full bg-orange-200">
 				<div className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-orange-400 to-transparent animate-pulse"></div>
 			</div>
-			<AboutVachanamrut />
+			<section id="about">
+				<AboutVachanamrut />
+			</section>
 			<div className="relative w-3/4 mx-auto my-8 h-1 overflow-hidden rounded-full bg-orange-200">
 				<div className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-orange-400 to-transparent animate-pulse"></div>
 			</div>

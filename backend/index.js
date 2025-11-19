@@ -8,12 +8,18 @@ const { registerRoutes } = require("./routes");
 const app = express();
 
 // Security middleware
-app.use(helmet());
+app.use(
+	helmet({
+		crossOriginResourcePolicy: false, // <-- IMPORTANT
+		crossOriginOpenerPolicy: false, // optional
+		crossOriginEmbedderPolicy: false, // optional
+	})
+);
 
 // CORS configuration
 app.use(
 	cors({
-		origin: process.env.CLIENT_URL || "http://localhost:5173",
+		origin: ["http://localhost:5173", "https://vachnamrutai.web.app"],
 		credentials: true,
 	})
 );
