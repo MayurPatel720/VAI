@@ -1,5 +1,6 @@
 import { BookOpen, Sparkles, Heart, User, LogOut } from "lucide-react";
 import logoImage from "@assets/generated_images/Spiritual_lotus_book_logo_bce59c2c.png";
+import meditationImagedark from "@assets/generated_images/Meditation_welcome_illustration_8b0a69d1copy.png";
 import meditationImage from "@assets/generated_images/Meditation_welcome_illustration_8b0a69d1.png";
 import { useAuth } from "../hooks/useAuth";
 import ThemeToggle from "../components/ThemeToggle";
@@ -22,6 +23,7 @@ import { queryClient } from "../lib/queryClient";
 export default function Landing() {
 	const { user, isAuthenticated } = useAuth();
 	const navigate = useNavigate();
+
 	const getUserInitials = () => {
 		if (!user) return "U";
 		if (user.firstName && user.lastName) {
@@ -38,11 +40,11 @@ export default function Landing() {
 			{/* Header */}
 			<header className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b">
 				<div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
-					<div className="flex items-center  md:gap-3">
+					<div className="flex items-center md:gap-3">
 						<img
 							src={logoImage}
 							alt="Vachanamrut Logo"
-							className="w-10 h-10 object-contain mix-blend-multiply"
+							className="w-10 h-10 object-contain"
 						/>
 						<h1 className="text-2xl font-bold text-foreground">Vachanamrut</h1>
 					</div>
@@ -66,13 +68,18 @@ export default function Landing() {
 										</Avatar>
 									</Button>
 								</DropdownMenuTrigger>
-								<DropdownMenuContent align="end">
-									<DropdownMenuLabel className="bg-white z-20">
-										<div className="flex flex-col">
-											<span className="text-sm font-medium">
+
+								{/* FIXED SECTION START */}
+								<DropdownMenuContent
+									align="end"
+									className="w-56 z-50 bg-white dark:bg-stone-900 border border-gray-200 dark:border-gray-800 shadow-xl"
+								>
+									<DropdownMenuLabel>
+										<div className="flex flex-col space-y-1">
+											<span className="text-sm font-medium leading-none text-gray-900 dark:text-gray-100">
 												{user.firstName} {user.lastName}
 											</span>
-											<span className="text-xs text-muted-foreground">
+											<span className="text-xs leading-none text-gray-500 dark:text-gray-400">
 												{user.email}
 											</span>
 											{user.subscription && (
@@ -82,23 +89,20 @@ export default function Landing() {
 											)}
 										</div>
 									</DropdownMenuLabel>
-									<DropdownMenuSeparator className="bg-white z-20" />
+									<DropdownMenuSeparator className="bg-gray-200 dark:bg-gray-700" />
 									<DropdownMenuItem
-										className="bg-white z-20"
+										className="cursor-pointer focus:bg-gray-100 dark:focus:bg-zinc-800"
 										onClick={() => navigate("/chat")}
 									>
 										<Sparkles className="mr-2 h-4 w-4" />
 										Go to Chat
 									</DropdownMenuItem>
 									<DropdownMenuItem
-										className="bg-white z-20"
+										className="cursor-pointer focus:bg-gray-100 dark:focus:bg-zinc-800"
 										onClick={() => {
 											localStorage.removeItem("token");
-
-											queryClient.clear(); // only if you imported queryClient
-
+											queryClient.clear();
 											navigate("/");
-
 											window.location.reload();
 										}}
 									>
@@ -106,6 +110,7 @@ export default function Landing() {
 										Logout
 									</DropdownMenuItem>
 								</DropdownMenuContent>
+								{/* FIXED SECTION END */}
 							</DropdownMenu>
 						) : (
 							<Button
@@ -122,9 +127,9 @@ export default function Landing() {
 			</header>
 
 			{/* Hero Section */}
-			<section className="pt-16 pb-16 md:pb-16 md:pt-24  px-4">
+			<section className="pt-16 pb-16 md:pb-16 md:pt-24 px-4">
 				<div className="max-w-6xl mx-auto">
-					<div className="grid md:grid-cols-2 gap-12 items-center ">
+					<div className="grid md:grid-cols-2 gap-12 items-center">
 						<div className="space-y-6">
 							<div className="inline-block px-4 py-1 bg-primary/10 text-primary rounded-full text-sm font-medium">
 								AI-Powered Spiritual Guidance
@@ -196,11 +201,27 @@ export default function Landing() {
 							</div>
 						</div>
 
-						<div className="flex justify-center">
+						<div className="flex justify-center relative">
+							<div className="absolute -z-10 w-72 h-72 rounded-full" />
+							<div className="absolute w-[380px] h-[380px] rounded-full bg-amber-500/20 blur-3xl opacity-80 animate-pulse" />
+
+							{/* Floating Sparkles */}
+							<div className="absolute inset-0 pointer-events-none overflow-visible">
+								<div className="absolute top-10 left-1/3 w-2 h-2 bg-amber-300 rounded-full blur-sm animate-bounce" />
+								<div className="absolute top-20 right-1/4 w-1.5 h-1.5 bg-yellow-200 rounded-full blur-[2px] animate-ping" />
+								<div className="absolute bottom-16 left-1/4 w-2 h-2 bg-orange-300 rounded-full blur-sm animate-ping" />
+								<div className="absolute bottom-8 right-16 w-1.5 h-1.5 bg-amber-300 rounded-full blur-[2px] animate-bounce" />
+							</div>
 							<img
 								src={meditationImage}
 								alt="Spiritual Meditation"
-								className="w-full max-w-md rounded-lg opacity-90 mix-blend-multiply"
+								className="w-full max-w-md rounded-lg block dark:hidden opacity-90 mix-blend-multiply"
+							/>
+
+							<img
+								src={meditationImagedark}
+								alt="Spiritual Meditation Dark"
+								className="w-full max-w-md rounded-lg hidden dark:block"
 							/>
 						</div>
 					</div>

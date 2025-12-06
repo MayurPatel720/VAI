@@ -3,6 +3,7 @@ import React, { useState } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
+import { baseURL } from "../lib/queryClient";
 
 declare global {
 	interface Window {
@@ -11,6 +12,7 @@ declare global {
 }
 
 interface Plan {
+	key: string;
 	name: string;
 	monthlyPrice: string;
 	yearlyPrice: string;
@@ -18,9 +20,12 @@ interface Plan {
 	features: string[];
 	popular?: boolean;
 }
+const token = localStorage.getItem("token") || "";
+console.log("token", token);
 
 const plans: Plan[] = [
 	{
+		key: "free",
 		name: "Free Plan",
 		monthlyPrice: "₹0",
 		yearlyPrice: "₹0",
@@ -32,7 +37,9 @@ const plans: Plan[] = [
 			"Limited to 5 AI questions per day",
 		],
 	},
+
 	{
+		key: "silver",
 		name: "Silver Plan",
 		monthlyPrice: "₹149",
 		yearlyPrice: "₹1490",
@@ -46,7 +53,9 @@ const plans: Plan[] = [
 		],
 		popular: true,
 	},
+
 	{
+		key: "gold",
 		name: "Gold Plan",
 		monthlyPrice: "₹299",
 		yearlyPrice: "₹2990",
@@ -60,7 +69,9 @@ const plans: Plan[] = [
 			"Early access to new features",
 		],
 	},
+
 	{
+		key: "premium",
 		name: "Premium Plan",
 		monthlyPrice: "₹499",
 		yearlyPrice: "₹4990",
@@ -79,10 +90,10 @@ const PricingPlan: React.FC = () => {
 		"monthly"
 	);
 	const navigate = useNavigate();
-	const { user } = useAuth();
+	const { user, refetchUser } = useAuth();
 
 	const currentUserPlan =
-		user?.subscription?.plan?.trim().toLowerCase() + " plan" || "";
+		(user?.subscription?.plan?.trim().toLowerCase() || "") + " plan";
 
 	const handlePlanClick = (plan: Plan) => {
 		if (plan.name === "Free Plan") return navigate("/chat");
@@ -90,29 +101,73 @@ const PricingPlan: React.FC = () => {
 		handlePayment(plan);
 	};
 
-	const handlePayment = (plan: Plan) => {
-		const amount =
-			billingCycle === "monthly"
-				? parseInt(plan.monthlyPrice.replace("₹", "")) * 100
-				: parseInt(plan.yearlyPrice.replace("₹", "")) * 100;
+	const handlePayment = async (plan: any) => {
+		if (!plan || !plan.key) {
+			console.error("❌ NO PLAN PROVIDED:", plan);
+
+			return;
+		}
+		const selectedPlan = plan.key; // silver/gold/premium
+
+		// 1) Create Razorpay order
+		const orderRes = await fetch(`${baseURL}/api/payment/create-order`, {
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json",
+				Authorization: `Bearer ${token}`,
+			},
+			body: JSON.stringify({ plan: selectedPlan }),
+		});
+
+		const orderData = await orderRes.json();
+
+		if (!orderData.orderId) {
+			console.log("Failed to create order");
+			return;
+		}
 
 		const options = {
-			key: "rzp_test_Ra2SvvOWqgqNtS",
-			amount,
-			currency: "INR",
-			name: "Mayur",
+			key: orderData.key,
+			amount: orderData.amount,
+			currency: orderData.currency,
+			name: "Vachanamrut AI",
 			description: `Subscription for ${plan.name}`,
-			image: "/logo.png",
-			handler: (response: any) => {
-				alert(
-					`Payment successful for ${plan.name}! Payment ID: ${response.razorpay_payment_id}`
-				);
-				navigate("/chat");
+			order_id: orderData.orderId,
+			handler: async (response: {
+				razorpay_order_id: any;
+				razorpay_payment_id: any;
+				razorpay_signature: any;
+			}) => {
+				const verifyRes = await fetch(`${baseURL}/api/payment/verify`, {
+					method: "POST",
+					headers: {
+						"Content-Type": "application/json",
+						Authorization: `Bearer ${token}`,
+					},
+					body: JSON.stringify({
+						razorpay_order_id: response.razorpay_order_id,
+						razorpay_payment_id: response.razorpay_payment_id,
+						razorpay_signature: response.razorpay_signature,
+						plan: selectedPlan,
+					}),
+				});
+
+				const verifyData = await verifyRes.json();
+
+				if (verifyData.subscription) {
+					console.log("Payment successful!");
+					await refetchUser(); // refresh the user subscription instantly
+
+					navigate("/chat");
+				} else {
+					console.log("Payment verification failed");
+				}
 			},
-			prefill: { name: user?.firstName, email: user?.email },
 			theme: { color: "#b76e22" },
 		};
-		new window.Razorpay(options).open();
+
+		const rzp = new window.Razorpay(options);
+		rzp.open();
 	};
 
 	return (

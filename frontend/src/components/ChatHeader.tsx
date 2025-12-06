@@ -17,13 +17,13 @@ export default function ChatHeader() {
 					<img
 						src={logoImage}
 						alt="Vachanamrut Logo"
-						className="w-10 h-10 object-contain mix-blend-multiply"
+						className="w-10 h-10 object-contain"
 					/>
 					<div className="flex flex-col">
 						<h1 className="text-md md:text-3xl  font-bold text-foreground">
 							Vachanamrut
 						</h1>
-						<p className="text-xs text-muted-foreground hidden sm:block">
+						<p className="text-xs text-muted-foreground hidden sm:block ml-1">
 							Spiritual Wisdom & Guidance
 						</p>
 					</div>

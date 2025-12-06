@@ -12,7 +12,11 @@ interface UserWithSubscription extends User {
 }
 
 export function useAuth() {
-	const { data: user, isLoading } = useQuery<UserWithSubscription>({
+	const {
+		data: user,
+		isLoading,
+		refetch: refetchUser, // 🔥 ADD THIS
+	} = useQuery<UserWithSubscription>({
 		queryKey: ["user"],
 		queryFn: async () => {
 			const token = localStorage.getItem("token");
@@ -25,11 +29,13 @@ export function useAuth() {
 			return res.json();
 		},
 		retry: false,
+		refetchOnWindowFocus: false, // optional
 	});
 
 	return {
 		user,
 		isLoading,
 		isAuthenticated: !!user,
+		refetchUser, // 🔥 RETURN THIS
 	};
 }

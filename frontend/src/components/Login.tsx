@@ -4,9 +4,12 @@ import { baseURL, queryClient } from "../lib/queryClient";
 import { useNavigate } from "react-router-dom";
 import { Button } from "./ui/button";
 import logoImage from "@assets/generated_images/Spiritual_lotus_book_logo_bce59c2c.png";
+import { useToast } from "../hooks/use-toast";
 
 export default function Login() {
 	const navigate = useNavigate();
+	const { toast } = useToast();
+
 	const [email, setEmail] = useState("");
 	const [password, setPassword] = useState("");
 
@@ -17,24 +20,49 @@ export default function Login() {
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({ email, password }),
 			});
+
 			const data = await res.json();
-			if (data.token) localStorage.setItem("token", data.token);
-			return data;
+			return { status: res.status, data };
 		},
-		onSuccess: async () => {
-			await queryClient.invalidateQueries({ queryKey: ["user"] });
-			navigate("/");
+
+		onSuccess: async (response) => {
+			const { status, data } = response;
+
+			if (status === 200 && data.token) {
+				localStorage.setItem("token", data.token);
+
+				toast({
+					title: "Login Successful 🎉",
+					description: "Welcome back to your spiritual journey.",
+				});
+
+				await queryClient.invalidateQueries({ queryKey: ["user"] });
+
+				setTimeout(() => {
+					navigate("/");
+				}, 500);
+			} else {
+				toast({
+					variant: "destructive",
+					title: "Login Failed ❌",
+					description: data.message || "Invalid email or password.",
+				});
+			}
+		},
+
+		onError: () => {
+			toast({
+				variant: "destructive",
+				title: "Server Error ❗",
+				description: "Unable to connect to the server.",
+			});
 		},
 	});
 
 	return (
 		<div className="min-h-screen flex items-center justify-center bg-[#0d0c0a] px-4">
 			<div className="bg-[#111010] border border-[#2a2927] shadow-[0_0_30px_rgba(0,0,0,0.4)] rounded-2xl p-8 w-full max-w-md text-center">
-				<img
-					src={logoImage}
-					alt="Logo"
-					className="w-20 mx-auto mb-4 drop-shadow-[0_0_10px_rgba(255,255,255,0.1)]"
-				/>
+				<img src={logoImage} alt="Logo" className="w-20 mx-auto mb-4  ]" />
 
 				<h2 className="text-3xl font-serif font-bold mb-2 text-[#f0e6d2]">
 					Welcome Back
@@ -58,6 +86,7 @@ export default function Login() {
 						required
 						className="w-full border border-[#3a3935] bg-[#1a1917] rounded-md px-3 py-2 text-sm text-[#f0e6d2] placeholder:text-[#7b776d] focus:outline-none focus:ring-2 focus:ring-[#b76e22] transition-all duration-200"
 					/>
+
 					<input
 						type="password"
 						placeholder="Password"
@@ -66,6 +95,7 @@ export default function Login() {
 						required
 						className="w-full border border-[#3a3935] bg-[#1a1917] rounded-md px-3 py-2 text-sm text-[#f0e6d2] placeholder:text-[#7b776d] focus:outline-none focus:ring-2 focus:ring-[#b76e22] transition-all duration-200"
 					/>
+
 					<Button
 						type="submit"
 						disabled={loginMutation.isPending}
