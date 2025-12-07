@@ -223,6 +223,13 @@ async function registerRoutes(app) {
 				razorpayPaymentId: razorpay_payment_id,
 				endDate,
 			});
+			const startOfDay = new Date();
+			startOfDay.setHours(0, 0, 0, 0);
+
+			await ChatMessage.deleteMany({
+				userId: req.userId,
+				createdAt: { $gte: startOfDay },
+			});
 
 			res.json({
 				message: "Payment verified successfully",
@@ -239,6 +246,29 @@ async function registerRoutes(app) {
 	// ============================================
 	// CHAT ROUTES
 	// ============================================
+
+	// ============================================
+	// CHAT USAGE ROUTE (Count today's messages)
+	// ============================================
+	app.get("/api/chat/usage", isAuthenticated, async (req, res) => {
+		try {
+			const today = new Date();
+			today.setHours(0, 0, 0, 0);
+
+			// Get all messages for the user
+			const messages = await storage.getChatMessages(req.userId);
+
+			// Count only USER messages (not bot)
+			const todayCount = messages.filter(
+				(m) => !m.isBot && new Date(m.createdAt) >= today
+			).length;
+
+			res.json({ todayCount });
+		} catch (error) {
+			console.error("Error fetching usage:", error);
+			res.status(500).json({ message: "Failed to fetch usage" });
+		}
+	});
 
 	app.get("/api/chat/history", isAuthenticated, async (req, res) => {
 		try {
@@ -260,6 +290,39 @@ async function registerRoutes(app) {
 
 			const { message } = schema.parse(req.body);
 
+			// ===============================
+			// CHECK CHAT LIMITS
+			// ===============================
+
+			const subscription = await storage.getUserSubscription(req.userId);
+
+			const LIMITS = {
+				FREE: 3,
+				silver: 30,
+				gold: 60,
+				premium: 150,
+			};
+
+			const plan = subscription?.plan || "FREE";
+			const maxChats = LIMITS[plan];
+
+			// Count today's user messages
+			const today = new Date();
+			today.setHours(0, 0, 0, 0);
+
+			const allMessages = await storage.getChatMessages(req.userId);
+			const todayCount = allMessages.filter(
+				(m) => !m.isBot && new Date(m.createdAt) >= today
+			).length;
+
+			// If usage exceeded
+			if (todayCount >= maxChats) {
+				return res.status(403).json({
+					message: "Chat limit reached for today",
+					remaining: 0,
+				});
+			}
+
 			// Save user message
 			await storage.createChatMessage({
 				userId: req.userId,
@@ -267,13 +330,16 @@ async function registerRoutes(app) {
 				isBot: false,
 			});
 
-			// Get AI response using OpenAI
+			// ===============================
+			// AI RESPONSE
+			// ===============================
+
 			const completion = await openai.chat.completions.create({
 				model: "gpt-4o-mini",
 				messages: [
 					{
 						role: "system",
-						content: `You are a spiritual guide based on the Vachanamrut, a sacred scripture in the Swaminarayan tradition. Provide wisdom, guidance, and insights rooted in the teachings of Vachanamrut. Be compassionate, respectful, and thoughtful in your responses. Address questions about devotion (bhakti), dharma, spiritual practices, and the path to liberation with references to Vachanamrut teachings when appropriate. Respond in a warm, reverent tone befitting spiritual guidance.`,
+						content: `You are a spiritual guide based on Vachanamrut...`,
 					},
 					{
 						role: "user",
@@ -286,9 +352,9 @@ async function registerRoutes(app) {
 
 			const botResponse =
 				completion.choices[0].message.content ||
-				"I apologize, but I'm having trouble responding right now. Please try again.";
+				"I apologize, I cannot respond right now.";
 
-			// Save bot response
+			// Save bot message
 			const savedMessage = await storage.createChatMessage({
 				userId: req.userId,
 				message: botResponse,

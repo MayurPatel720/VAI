@@ -10,19 +10,51 @@ import { useToast } from "../hooks/use-toast";
 import { isUnauthorizedError } from "../lib/authUtils";
 import ChatHeader from "../components/ChatHeader";
 import { useMutation, useQuery } from "@tanstack/react-query";
+import UpgradeModal from "../components/UpgradeModal";
 
 export default function Chat() {
 	const [isTyping, setIsTyping] = useState(false);
-	const messagesEndRef = useRef<HTMLDivElement>(null);
-	const { user, isAuthenticated } = useAuth();
-	const { toast } = useToast();
-	console.log(user);
+	const [showUpgrade, setShowUpgrade] = useState(false);
 
-	// Fetch chat history for authenticated users
-	const { data: chatHistory = [] } = useQuery<any[]>({
+	const messagesEndRef = useRef<HTMLDivElement>(null);
+	const { isAuthenticated, user } = useAuth();
+	const { toast } = useToast();
+
+	// Chat usage query
+	const { data: usage } = useQuery({
+		queryKey: ["chat-usage"],
+		queryFn: async () => {
+			const res = await apiRequest("GET", "/api/chat/usage");
+			return res.json();
+		},
+		enabled: !!user,
+	});
+
+	const LIMITS = {
+		FREE: 3,
+		silver: 30,
+		gold: 60,
+		premium: 150,
+	} as const;
+
+	const plan = (user?.subscription?.plan || "FREE") as keyof typeof LIMITS;
+	const maxChats = LIMITS[plan];
+	const used = usage?.todayCount || 0;
+	const remaining = Math.max(0, maxChats - used);
+
+	useEffect(() => {
+		if (remaining === 0) setShowUpgrade(true);
+	}, [remaining]);
+
+	// Fetch chat history
+	const { data: chatHistory = [] } = useQuery({
 		queryKey: ["/api/chat/history"],
 		enabled: isAuthenticated,
 		retry: false,
+		queryFn: async () => {
+			const res = await apiRequest("GET", "/api/chat/history");
+			return res.json();
+		},
 	});
 
 	const scrollToBottom = () => {
@@ -43,10 +75,15 @@ export default function Chat() {
 		},
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: ["/api/chat/history"] });
+			queryClient.invalidateQueries({ queryKey: ["chat-usage"] });
 			setIsTyping(false);
 		},
 		onError: (error: any) => {
 			setIsTyping(false);
+			if (error.status === 403) {
+				setShowUpgrade(true);
+				return;
+			}
 
 			if (isUnauthorizedError(error)) {
 				toast({
@@ -69,6 +106,11 @@ export default function Chat() {
 	});
 
 	const handleSendMessage = async (text: string) => {
+		if (remaining === 0) {
+			setShowUpgrade(true);
+			return;
+		}
+
 		if (!isAuthenticated) {
 			toast({
 				title: "Login Required",
@@ -90,25 +132,38 @@ export default function Chat() {
 	};
 
 	return (
-		<div className="flex flex-col h-screen" data-testid="page-chat">
+		<div
+			className="
+				flex flex-col h-screen 
+				bg-[#f5f5f7] dark:bg-background 
+				text-foreground
+			"
+			data-testid="page-chat"
+		>
 			<ChatHeader />
 
-			<main className="flex-1 overflow-y-auto">
-				<div className="max-w-4xl mx-auto px-4 py-8">
+			{/* SOFT BACKGROUND SECTION ADDED */}
+			<main className="flex-1 overflow-y-auto bg-[#fafafa] dark:bg-background/80">
+				<div
+					className="max-w-4xl mx-auto px-4 py-8 
+					bg-transparent
+					"
+				>
 					{chatHistory.length === 0 ? (
 						<WelcomeCard onPromptClick={handlePromptClick} />
 					) : (
 						<div className="space-y-4">
-							{chatHistory.map((message) => (
+							{chatHistory.map((message: any) => (
 								<ChatMessage
 									key={message.id}
 									message={message.message}
 									isBot={message.isBot}
 									timestamp={
-										message.timestamp ? new Date(message.timestamp) : undefined
+										message.createdAt ? new Date(message.createdAt) : undefined
 									}
 								/>
 							))}
+
 							{isTyping && <TypingIndicator />}
 							<div ref={messagesEndRef} />
 						</div>
@@ -118,8 +173,10 @@ export default function Chat() {
 
 			<ChatInput
 				onSendMessage={handleSendMessage}
-				disabled={isTyping || sendMessageMutation.isPending}
+				disabled={isTyping || sendMessageMutation.isPending || remaining === 0}
 			/>
+
+			<UpgradeModal open={showUpgrade} onClose={() => setShowUpgrade(false)} />
 		</div>
 	);
 }

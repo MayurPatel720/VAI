@@ -54,11 +54,12 @@ const Footer = () => {
 				>
 					Chat
 				</a>
+
 				<a
-					href="#contact"
+					onClick={() => navigate("/legal")}
 					className="text-orange-700 dark:text-gray-400 hover:text-orange-500 dark:hover:text-orange-400 transition"
 				>
-					Contact
+					Privacy Policy
 				</a>
 			</div>
 

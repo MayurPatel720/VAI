@@ -3,11 +3,14 @@ import { Button } from "../components/ui/button";
 import { useEffect, useState } from "react";
 
 export default function ThemeToggle() {
-	const [theme, setTheme] = useState<"light" | "dark">("light");
+	const [theme, setTheme] = useState<"light" | "dark">("dark");
 
 	useEffect(() => {
 		const savedTheme = localStorage.getItem("theme") as "light" | "dark" | null;
-		const initialTheme = savedTheme || "light";
+
+		// Default → DARK theme
+		const initialTheme = savedTheme || "dark";
+
 		setTheme(initialTheme);
 		document.documentElement.classList.toggle("dark", initialTheme === "dark");
 	}, []);
@@ -16,6 +19,7 @@ export default function ThemeToggle() {
 		const newTheme = theme === "light" ? "dark" : "light";
 		setTheme(newTheme);
 		localStorage.setItem("theme", newTheme);
+
 		document.documentElement.classList.toggle("dark", newTheme === "dark");
 	};
 
