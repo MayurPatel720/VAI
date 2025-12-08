@@ -21,7 +21,6 @@ interface Plan {
 	popular?: boolean;
 }
 const token = localStorage.getItem("token") || "";
-console.log("token", token);
 
 const plans: Plan[] = [
 	{
@@ -96,8 +95,15 @@ const PricingPlan: React.FC = () => {
 		(user?.subscription?.plan?.trim().toLowerCase() || "") + " plan";
 
 	const handlePlanClick = (plan: Plan) => {
-		if (plan.name === "Free Plan") return navigate("/chat");
-		if (plan.name.toLowerCase() === currentUserPlan) return navigate("/chat");
+		if (!user) {
+			navigate("/login");
+			return;
+		}
+
+		if (plan.key === "free" || plan.name.toLowerCase() === currentUserPlan) {
+			return navigate("/chat");
+		}
+
 		handlePayment(plan);
 	};
 
@@ -219,7 +225,7 @@ const PricingPlan: React.FC = () => {
 			</motion.div>
 
 			{/* Pricing Cards */}
-			<section className="w-full max-w-7xl grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 px-4">
+			<section className="w-full max-w-7xl grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
 				{plans.map((plan, index) => {
 					const isCurrent =
 						plan.name.toLowerCase() === (currentUserPlan || "").toLowerCase();

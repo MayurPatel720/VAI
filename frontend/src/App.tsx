@@ -23,55 +23,24 @@ import LegalPolicies from "./components/LegalPolicies";
 
 import { useAuth } from "./hooks/useAuth";
 
-// analytics
-import {
-	trackAppLoaded,
-	trackPageView,
-	attachGlobalErrorHandlers,
-	getAnalyticsConsent,
-	enableAnalytics,
-	disableAnalytics,
-} from "../src/service/analyticsService";
-
-/**
- * RouterContent handles route-level logic and analytics tracking.
- */
 function RouterContent() {
 	const { isAuthenticated, isLoading } = useAuth();
 	const navigate = useNavigate();
 	const location = useLocation();
 
-	// attach global error handlers once
-	useEffect(() => {
-		attachGlobalErrorHandlers();
-	}, []);
-
-	// app loaded
-	useEffect(() => {
-		// initialize analytics consent (no-op if already set)
-		const consent = getAnalyticsConsent();
-		if (!consent) {
-			disableAnalytics().catch(() => {});
-		} else {
-			enableAnalytics().catch(() => {});
-		}
-
-		// track app load
-		trackAppLoaded();
-	}, []);
-
-	// track page views on route change
-	useEffect(() => {
-		trackPageView(location.pathname);
-	}, [location.pathname]);
-
-	// auth routing
 	useEffect(() => {
 		if (isLoading) return;
-		if (!isAuthenticated && location.pathname !== "/register") {
-			navigate("/login");
-		} else if (isAuthenticated && location.pathname === "/login") {
-			navigate("/");
+
+		const publicPaths = ["/", "/login", "/register", "/legal"];
+
+		// ⬅️ protect only chat
+		if (!isAuthenticated && !publicPaths.includes(location.pathname)) {
+			navigate("/login", { replace: true });
+		}
+
+		// ⬅️ logged-in users cannot go back to login
+		if (isAuthenticated && location.pathname === "/login") {
+			navigate("/", { replace: true });
 		}
 	}, [isAuthenticated, isLoading, location.pathname, navigate]);
 
@@ -88,6 +57,7 @@ function RouterContent() {
 
 	return (
 		<Routes>
+			{/* Public */}
 			{!isAuthenticated && (
 				<>
 					<Route
@@ -117,7 +87,9 @@ function RouterContent() {
 					</AnimatedPage>
 				}
 			/>
+			<Route path="/legal" element={<LegalPolicies />} />
 
+			{/* Protected */}
 			<Route
 				path="/chat"
 				element={
@@ -126,7 +98,7 @@ function RouterContent() {
 					</AnimatedPage>
 				}
 			/>
-			<Route path="/legal" element={<LegalPolicies />} />
+
 			<Route
 				path="*"
 				element={
@@ -139,9 +111,6 @@ function RouterContent() {
 	);
 }
 
-/**
- * Top-level App component
- */
 function App() {
 	return (
 		<QueryClientProvider client={queryClient}>

@@ -9,6 +9,8 @@ import {
 	CardTitle,
 } from "../components/ui/card";
 import { Loader2 } from "lucide-react";
+import { baseURL } from "../lib/queryClient";
+import { useToast } from "../hooks/use-toast";
 
 export default function Register() {
 	const [form, setForm] = useState({
@@ -19,17 +21,49 @@ export default function Register() {
 	});
 	const [loading, setLoading] = useState(false);
 	const navigate = useNavigate();
+	const { toast } = useToast();
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
 		setLoading(true);
+
 		try {
-			const res = await fetch("/api/register", {
+			const res = await fetch(`${baseURL}/api/auth/register`, {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify(form),
 			});
-			if (res.ok) navigate("/login");
+
+			const data = await res.json();
+
+			if (!res.ok) {
+				toast({
+					variant: "destructive",
+					title: "Registration Failed ❌",
+					description: data.message || "Something went wrong.",
+				});
+				return;
+			}
+
+			// Store token (auto login)
+			localStorage.setItem("token", data.token);
+
+			toast({
+				title: "Account Created 🎉",
+				description: "Welcome to your spiritual journey.",
+			});
+
+			// Redirect to homepage instead of login
+			setTimeout(() => {
+				navigate("/");
+			}, 600);
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		} catch (err: any) {
+			toast({
+				variant: "destructive",
+				title: "Server Error ❗" + err?.message,
+				description: "Unable to register right now.",
+			});
 		} finally {
 			setLoading(false);
 		}
@@ -46,6 +80,7 @@ export default function Register() {
 						Begin your spiritual journey today
 					</p>
 				</CardHeader>
+
 				<CardContent>
 					<form onSubmit={handleSubmit} className="space-y-4">
 						<div className="grid grid-cols-2 gap-3">
@@ -64,6 +99,7 @@ export default function Register() {
 								onChange={(e) => setForm({ ...form, lastName: e.target.value })}
 							/>
 						</div>
+
 						<Input
 							type="email"
 							placeholder="Email"
@@ -71,6 +107,7 @@ export default function Register() {
 							value={form.email}
 							onChange={(e) => setForm({ ...form, email: e.target.value })}
 						/>
+
 						<Input
 							type="password"
 							placeholder="Password"
@@ -78,6 +115,7 @@ export default function Register() {
 							value={form.password}
 							onChange={(e) => setForm({ ...form, password: e.target.value })}
 						/>
+
 						<Button className="w-full" disabled={loading}>
 							{loading ? (
 								<Loader2 className="animate-spin mr-2 h-4 w-4" />
@@ -86,6 +124,7 @@ export default function Register() {
 							)}
 						</Button>
 					</form>
+
 					<p className="text-sm text-center mt-4 text-muted-foreground">
 						Already have an account?{" "}
 						<span

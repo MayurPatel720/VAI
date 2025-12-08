@@ -115,7 +115,7 @@ export default function Landing() {
 						) : (
 							<Button
 								variant="outline"
-								onClick={() => (window.location.href = "/api/login")}
+								onClick={() => navigate("/login")}
 								data-testid="button-login"
 							>
 								<User className="mr-2 h-4 w-4" />
@@ -127,8 +127,8 @@ export default function Landing() {
 			</header>
 
 			{/* Hero Section */}
-			<section className="pt-16 pb-16 md:pb-16 md:pt-24 px-4">
-				<div className="max-w-6xl mx-auto">
+			<section className="pt-8 pb-16 md:pb-16 md:pt-24 px-4">
+				<div className="max-w-6xl mx-auto px-2 md:px-0">
 					<div className="grid md:grid-cols-2 gap-12 items-center">
 						<div className="space-y-6">
 							<div className="inline-block px-4 py-1 bg-primary/10 text-primary rounded-full text-sm font-medium">
@@ -227,13 +227,13 @@ export default function Landing() {
 					</div>
 				</div>
 			</section>
-			<div className="relative w-3/4 mx-auto my-8 h-1 overflow-hidden rounded-full bg-orange-200">
+			<div className="relative w-3/4 mx-auto  h-1 overflow-hidden rounded-full bg-orange-200">
 				<div className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-orange-400 to-transparent animate-pulse"></div>
 			</div>
 			<section id="about">
 				<AboutVachanamrut />
 			</section>
-			<div className="relative w-3/4 mx-auto my-8 h-1 overflow-hidden rounded-full bg-orange-200">
+			<div className="relative w-3/4 mx-auto h-1 overflow-hidden rounded-full bg-orange-200">
 				<div className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-orange-400 to-transparent animate-pulse"></div>
 			</div>
 
