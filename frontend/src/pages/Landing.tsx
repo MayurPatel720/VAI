@@ -1,4 +1,11 @@
-import { BookOpen, Sparkles, Heart, User, LogOut } from "lucide-react";
+import {
+	Sparkles,
+	User,
+	LogOut,
+	ScrollText,
+	Stars,
+	HeartHandshake,
+} from "lucide-react";
 import logoImage from "@assets/generated_images/Spiritual_lotus_book_logo_bce59c2c.png";
 import meditationImagedark from "@assets/generated_images/Meditation_welcome_illustration_8b0a69d1copy.png";
 import meditationImage from "@assets/generated_images/Meditation_welcome_illustration_8b0a69d1.png";
@@ -171,29 +178,25 @@ export default function Landing() {
 							</div>
 
 							<div className="grid grid-cols-3 gap-6 pt-8">
-								<div className="text-center">
-									<BookOpen className="h-8 w-8 text-primary mx-auto mb-2" />
-									<p className="text-sm font-medium text-foreground">
-										Sacred Texts
-									</p>
+								<div className="text-center space-y-1">
+									<ScrollText className="h-9 w-9 text-primary mx-auto" />
+									<p className="text-sm font-medium">Sacred Teachings</p>
 									<p className="text-xs text-muted-foreground">
-										Authentic teachings
+										Authentic texts
 									</p>
 								</div>
-								<div className="text-center">
-									<Sparkles className="h-8 w-8 text-primary mx-auto mb-2" />
-									<p className="text-sm font-medium text-foreground">
-										AI-Powered
-									</p>
+
+								<div className="text-center space-y-1">
+									<Stars className="h-9 w-9 text-primary mx-auto" />
+									<p className="text-sm font-medium">AI Insight</p>
 									<p className="text-xs text-muted-foreground">
-										Smart guidance
+										Personal guidance
 									</p>
 								</div>
-								<div className="text-center">
-									<Heart className="h-8 w-8 text-primary mx-auto mb-2" />
-									<p className="text-sm font-medium text-foreground">
-										Bilingual
-									</p>
+
+								<div className="text-center space-y-1">
+									<HeartHandshake className="h-9 w-9 text-primary mx-auto" />
+									<p className="text-sm font-medium">Bilingual</p>
 									<p className="text-xs text-muted-foreground">
 										ગુજરાતી & English
 									</p>
