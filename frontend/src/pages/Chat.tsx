@@ -11,7 +11,6 @@ import { useToast } from "../hooks/use-toast";
 import { isUnauthorizedError } from "../lib/authUtils";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { ArrowDown, Sparkles, Loader2 } from "lucide-react";
-import { Button } from "../components/ui/button";
 import ChatSidebar from "../components/ChatSidebar";
 
 export default function Chat() {

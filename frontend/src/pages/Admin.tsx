@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "../components/ui/button";
 import { Star, Trash2, ArrowLeft, Lock, Shield } from "lucide-react";
+import { baseURL } from "../lib/queryClient";
 
 export default function Admin() {
 	const navigate = useNavigate();
@@ -14,7 +15,7 @@ export default function Admin() {
 	// Verify PIN
 	const verifyMutation = useMutation({
 		mutationFn: async (pin: string) => {
-			const res = await fetch("/api/admin/verify", {
+			const res = await fetch(`${baseURL}/api/admin/verify`, {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({ pin }),
