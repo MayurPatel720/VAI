@@ -225,7 +225,7 @@ const PricingPlan: React.FC = () => {
 			</motion.div>
 
 			{/* Pricing Cards */}
-			<section className="w-full max-w-7xl grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+			<section className="w-full max-w-7xl px-4 md:px-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
 				{plans.map((plan, index) => {
 					const isCurrent =
 						plan.name.toLowerCase() === (currentUserPlan || "").toLowerCase();
@@ -280,11 +280,11 @@ const PricingPlan: React.FC = () => {
 								onClick={() => handlePlanClick(plan)}
 								className={`mt-8 w-full py-3 rounded-lg font-medium transition-all duration-300 ${
 									isCurrent
-										? "bg-green-600 text-white"
+										? "bg-green-600 text-white hover:bg-green-700 hover:shadow-lg hover:scale-[1.02] focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
 										: plan.popular
-										? "bg-primary text-primary-foreground hover:opacity-90"
-										: "border border-primary text-primary hover:bg-muted"
-								}`}
+										? "bg-primary text-primary-foreground hover:opacity-90 hover:shadow-lg hover:scale-[1.02] focus:ring-2 focus:ring-primary focus:ring-offset-2"
+										: "border border-primary text-primary hover:bg-muted hover:shadow-md hover:scale-[1.02] focus:ring-2 focus:ring-primary focus:ring-offset-2"
+								} active:scale-95 focus:outline-none`}
 							>
 								{isCurrent || plan.name === "Free Plan"
 									? "Get Started"

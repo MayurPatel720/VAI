@@ -1,8 +1,12 @@
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
+import { useState } from "react";
+import FeedbackForm from "../components/FeedbackForm";
 
 const Footer = () => {
 	const navigate = useNavigate();
+	const [showFeedback, setShowFeedback] = useState(false);
+
 	return (
 		<motion.footer
 			initial={{ opacity: 0, y: 40 }}
@@ -16,6 +20,21 @@ const Footer = () => {
 		>
 			{/* Glowing Line */}
 			<div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-orange-500 to-transparent animate-pulse opacity-60"></div>
+
+			{/* Feedback Form Modal */}
+			{showFeedback && (
+				<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+					<div className="max-w-md w-full relative">
+						<button
+							onClick={() => setShowFeedback(false)}
+							className="absolute -top-3 -right-3 bg-background border border-border rounded-full h-8 w-8 flex items-center justify-center shadow-lg hover:bg-muted transition-colors z-10"
+						>
+							×
+						</button>
+						<FeedbackForm />
+					</div>
+				</div>
+			)}
 
 			{/* Logo / Title */}
 			<h2 className="text-2xl font-bold mb-3 text-orange-600 dark:text-orange-400 tracking-wide">
@@ -54,10 +73,15 @@ const Footer = () => {
 				>
 					Chat
 				</a>
-
+				<a
+					onClick={() => setShowFeedback(true)}
+					className="text-orange-700 dark:text-gray-400 hover:text-orange-500 dark:hover:text-orange-400 cursor-pointer transition"
+				>
+					Feedback
+				</a>
 				<a
 					onClick={() => navigate("/legal")}
-					className="text-orange-700 dark:text-gray-400 hover:text-orange-500 dark:hover:text-orange-400 transition"
+					className="text-orange-700 dark:text-gray-400 hover:text-orange-500 dark:hover:text-orange-400 cursor-pointer transition"
 				>
 					Privacy Policy
 				</a>

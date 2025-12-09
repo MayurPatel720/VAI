@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Offline - Vachanamrut AI</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background: linear-gradient(135deg, #0A0A0A 0%, #1a1815 100%);
+            color: #f0e6d2;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            text-align: center;
+            max-width: 400px;
+        }
+
+        .icon {
+            width: 80px;
+            height: 80px;
+            background: rgba(183, 110, 34, 0.1);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 24px;
+        }
+
+        .icon svg {
+            width: 40px;
+            height: 40px;
+            color: #B76E22;
+        }
+
+        h1 {
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            color: #f0e6d2;
+        }
+
+        p {
+            color: #a59c8d;
+            line-height: 1.6;
+            margin-bottom: 24px;
+        }
+
+        .btn {
+            display: inline-block;
+            background: #B76E22;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 500;
+            transition: opacity 0.2s;
+        }
+
+        .btn:hover {
+            opacity: 0.9;
+        }
+
+        .quote {
+            margin-top: 40px;
+            padding: 20px;
+            background: rgba(183, 110, 34, 0.1);
+            border-radius: 12px;
+            border-left: 3px solid #B76E22;
+        }
+
+        .quote p {
+            font-style: italic;
+            margin: 0;
+            font-size: 14px;
+        }
+
+        .quote cite {
+            display: block;
+            margin-top: 8px;
+            font-size: 12px;
+            color: #B76E22;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="icon">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M18.364 5.636a9 9 0 010 12.728m-3.536-3.536a4 4 0 010-5.656m-8.485 8.485a9 9 0 010-12.728m3.536 3.536a4 4 0 010 5.656" />
+            </svg>
+        </div>
+
+        <h1>You're Offline</h1>
+        <p>It seems you've lost your internet connection. Please check your connection and try again.</p>
+
+        <a href="/" class="btn" onclick="window.location.reload(); return false;">
+            Try Again
+        </a>
+
+        <div class="quote">
+            <p>"One who has faith in God and the words of the Satpurush will attain liberation."</p>
+            <cite>— Vachanamrut, Gadhada I-28</cite>
+        </div>
+    </div>
+</body>
+
+</html>

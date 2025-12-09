@@ -20,6 +20,9 @@ import Login from "./components/Login";
 import Register from "./components/Register";
 import AnimatedPage from "./pages/AnimatedPage";
 import LegalPolicies from "./components/LegalPolicies";
+import Admin from "./pages/Admin";
+import Bookmarks from "./pages/Bookmarks";
+import PWAInstallPrompt from "./components/PWAInstallPrompt";
 
 import { useAuth } from "./hooks/useAuth";
 
@@ -31,7 +34,7 @@ function RouterContent() {
 	useEffect(() => {
 		if (isLoading) return;
 
-		const publicPaths = ["/", "/login", "/register", "/legal"];
+		const publicPaths = ["/", "/login", "/register", "/legal", "/admin"];
 
 		// ⬅️ protect only chat
 		if (!isAuthenticated && !publicPaths.includes(location.pathname)) {
@@ -100,6 +103,24 @@ function RouterContent() {
 			/>
 
 			<Route
+				path="/admin"
+				element={
+					<AnimatedPage>
+						<Admin />
+					</AnimatedPage>
+				}
+			/>
+
+			<Route
+				path="/bookmarks"
+				element={
+					<AnimatedPage>
+						<Bookmarks />
+					</AnimatedPage>
+				}
+			/>
+
+			<Route
 				path="*"
 				element={
 					<AnimatedPage>
@@ -116,6 +137,7 @@ function App() {
 		<QueryClientProvider client={queryClient}>
 			<TooltipProvider>
 				<Toaster />
+				<PWAInstallPrompt />
 				<BrowserRouter>
 					<AnimatePresence mode="wait">
 						<RouterContent />

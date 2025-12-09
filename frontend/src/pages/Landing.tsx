@@ -26,6 +26,7 @@ import PricingPlan from "./PricingPlan";
 import AboutVachanamrut from "./AboutVachanamrut";
 import Footer from "./Footer";
 import { queryClient } from "../lib/queryClient";
+import { motion } from "framer-motion";
 
 export default function Landing() {
 	const { user, isAuthenticated } = useAuth();
@@ -43,9 +44,12 @@ export default function Landing() {
 	};
 
 	return (
-		<div className="min-h-screen bg-background" data-testid="page-landing">
+		<div
+			className="min-h-screen bg-background"
+			data-testid="page-landing"
+		>
 			{/* Header */}
-			<header className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b">
+			<header className="sticky top-0 z-10 bg-background/80 backdrop-blur-xl border-b border-border">
 				<div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
 					<div className="flex items-center md:gap-3">
 						<img
@@ -137,26 +141,56 @@ export default function Landing() {
 			<section className="pt-8 pb-16 md:pb-16 md:pt-24 px-4">
 				<div className="max-w-6xl mx-auto px-2 md:px-0">
 					<div className="grid md:grid-cols-2 gap-12 items-center">
-						<div className="space-y-6">
-							<div className="inline-block px-4 py-1 bg-primary/10 text-primary rounded-full text-sm font-medium">
+						<motion.div 
+							className="space-y-6"
+							initial={{ opacity: 0, x: -30 }}
+							whileInView={{ opacity: 1, x: 0 }}
+							viewport={{ once: true, amount: 0.3 }}
+							transition={{ duration: 0.7, ease: "easeOut" }}
+						>
+							<motion.div 
+								className="inline-block px-4 py-1 bg-primary/30 text-orange-400 rounded-full text-sm font-medium"
+								initial={{ opacity: 0, scale: 0.9 }}
+								whileInView={{ opacity: 1, scale: 1 }}
+								viewport={{ once: true }}
+								transition={{ duration: 0.5, delay: 0.2 }}
+							>
 								AI-Powered Spiritual Guidance
-							</div>
+							</motion.div>
 
-							<h2 className="text-4xl md:text-5xl font-sans font-bold text-foreground leading-tight">
+							<motion.h2 
+								className="text-4xl md:text-5xl font-sans font-bold text-foreground leading-tight"
+								initial={{ opacity: 0, y: 20 }}
+								whileInView={{ opacity: 1, y: 0 }}
+								viewport={{ once: true }}
+								transition={{ duration: 0.6, delay: 0.3 }}
+							>
 								Discover Divine Wisdom from Vachanamrut
-							</h2>
+							</motion.h2>
 
-							<p className="text-lg text-muted-foreground leading-relaxed">
+							<motion.p 
+								className="text-lg text-muted-foreground leading-relaxed"
+								initial={{ opacity: 0, y: 20 }}
+								whileInView={{ opacity: 1, y: 0 }}
+								viewport={{ once: true }}
+								transition={{ duration: 0.6, delay: 0.4 }}
+							>
 								Connect with sacred teachings through AI-powered conversations.
 								Receive personalized spiritual guidance rooted in the timeless
 								wisdom of Vachanamrut, available in both Gujarati and English.
-							</p>
+							</motion.p>
 
-							<div className="flex flex-wrap gap-4 pt-4">
+							<motion.div 
+								className="flex flex-wrap gap-4 pt-4"
+								initial={{ opacity: 0, y: 20 }}
+								whileInView={{ opacity: 1, y: 0 }}
+								viewport={{ once: true }}
+								transition={{ duration: 0.6, delay: 0.5 }}
+							>
 								<Button
 									size="lg"
 									onClick={() => navigate("/chat")}
-									className="text-base"
+									className="text-base transition-all duration-300 hover:scale-105 hover:shadow-lg active:scale-95"
 									data-testid="button-enter-chatbot"
 								>
 									<Sparkles className="mr-2 h-5 w-5" />
@@ -170,14 +204,20 @@ export default function Landing() {
 											.getElementById("pricing")
 											?.scrollIntoView({ behavior: "smooth" });
 									}}
-									className="text-base"
+									className="text-base transition-all duration-300 hover:scale-105 hover:shadow-md active:scale-95"
 									data-testid="button-view-pricing"
 								>
-									View Pricing
+									Explore Plans
 								</Button>
-							</div>
+							</motion.div>
 
-							<div className="grid grid-cols-3 gap-6 pt-8">
+							<motion.div 
+								className="grid grid-cols-3 gap-6 pt-8"
+								initial={{ opacity: 0, y: 30 }}
+								whileInView={{ opacity: 1, y: 0 }}
+								viewport={{ once: true }}
+								transition={{ duration: 0.7, delay: 0.6 }}
+							>
 								<div className="text-center space-y-1">
 									<ScrollText className="h-9 w-9 text-primary mx-auto" />
 									<p className="text-sm font-medium">Sacred Teachings</p>
@@ -201,8 +241,8 @@ export default function Landing() {
 										ગુજરાતી & English
 									</p>
 								</div>
-							</div>
-						</div>
+							</motion.div>
+						</motion.div>
 
 						<div className="flex justify-center relative">
 							<div className="absolute -z-10 w-72 h-72 rounded-full" />

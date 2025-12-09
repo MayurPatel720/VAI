@@ -383,6 +383,259 @@ async function registerRoutes(app) {
 		}
 	});
 
+	// ============================================
+	// CHAT SESSION ROUTES
+	// ============================================
+
+	// Get all sessions for user
+	app.get("/api/chat/sessions", isAuthenticated, async (req, res) => {
+		try {
+			const page = parseInt(req.query.page) || 1;
+			const limit = parseInt(req.query.limit) || 20;
+			const result = await storage.getUserSessions(req.userId, page, limit);
+			res.json(result);
+		} catch (error) {
+			console.error("Error fetching sessions:", error);
+			res.status(500).json({ message: "Failed to fetch sessions" });
+		}
+	});
+
+	// Create new session
+	app.post("/api/chat/sessions", isAuthenticated, async (req, res) => {
+		try {
+			const { title } = req.body;
+			const session = await storage.createSession(req.userId, title);
+			res.status(201).json(session);
+		} catch (error) {
+			console.error("Error creating session:", error);
+			res.status(500).json({ message: "Failed to create session" });
+		}
+	});
+
+	// Get active session (or create one)
+	app.get("/api/chat/sessions/active", isAuthenticated, async (req, res) => {
+		try {
+			const session = await storage.getActiveSession(req.userId);
+			res.json(session);
+		} catch (error) {
+			console.error("Error fetching active session:", error);
+			res.status(500).json({ message: "Failed to fetch active session" });
+		}
+	});
+
+	// Get session by ID
+	app.get("/api/chat/sessions/:id", isAuthenticated, async (req, res) => {
+		try {
+			const session = await storage.getSession(req.params.id);
+			if (!session) {
+				return res.status(404).json({ message: "Session not found" });
+			}
+			if (session.userId !== req.userId) {
+				return res.status(403).json({ message: "Access denied" });
+			}
+			res.json(session);
+		} catch (error) {
+			console.error("Error fetching session:", error);
+			res.status(500).json({ message: "Failed to fetch session" });
+		}
+	});
+
+	// Update session
+	app.patch("/api/chat/sessions/:id", isAuthenticated, async (req, res) => {
+		try {
+			const session = await storage.getSession(req.params.id);
+			if (!session) {
+				return res.status(404).json({ message: "Session not found" });
+			}
+			if (session.userId !== req.userId) {
+				return res.status(403).json({ message: "Access denied" });
+			}
+
+			const { title, isActive } = req.body;
+			const updated = await storage.updateSession(req.params.id, { title, isActive });
+			res.json(updated);
+		} catch (error) {
+			console.error("Error updating session:", error);
+			res.status(500).json({ message: "Failed to update session" });
+		}
+	});
+
+	// Delete session
+	app.delete("/api/chat/sessions/:id", isAuthenticated, async (req, res) => {
+		try {
+			const session = await storage.getSession(req.params.id);
+			if (!session) {
+				return res.status(404).json({ message: "Session not found" });
+			}
+			if (session.userId !== req.userId) {
+				return res.status(403).json({ message: "Access denied" });
+			}
+
+			await storage.deleteSession(req.params.id);
+			res.json({ message: "Session deleted successfully" });
+		} catch (error) {
+			console.error("Error deleting session:", error);
+			res.status(500).json({ message: "Failed to delete session" });
+		}
+	});
+
+	// ============================================
+	// BOOKMARK ROUTES
+	// ============================================
+
+	// Get all bookmarks
+	app.get("/api/bookmarks", isAuthenticated, async (req, res) => {
+		try {
+			const page = parseInt(req.query.page) || 1;
+			const limit = parseInt(req.query.limit) || 20;
+			const category = req.query.category || null;
+			const result = await storage.getUserBookmarks(req.userId, category, page, limit);
+			res.json(result);
+		} catch (error) {
+			console.error("Error fetching bookmarks:", error);
+			res.status(500).json({ message: "Failed to fetch bookmarks" });
+		}
+	});
+
+	// Create bookmark
+	app.post("/api/bookmarks", isAuthenticated, async (req, res) => {
+		try {
+			const schema = z.object({
+				messageId: z.string(),
+				messageContent: z.string(),
+				category: z.enum(["spiritual", "practical", "inspiring", "study", "other"]).optional(),
+				note: z.string().optional(),
+			});
+
+			const data = schema.parse(req.body);
+			const bookmark = await storage.createBookmark({
+				userId: req.userId,
+				...data,
+			});
+			res.status(201).json(bookmark);
+		} catch (error) {
+			console.error("Error creating bookmark:", error);
+			if (error instanceof z.ZodError) {
+				return res.status(400).json({ message: "Invalid input", errors: error.errors });
+			}
+			res.status(500).json({ message: "Failed to create bookmark" });
+		}
+	});
+
+	// Check if message is bookmarked
+	app.get("/api/bookmarks/check/:messageId", isAuthenticated, async (req, res) => {
+		try {
+			const result = await storage.isMessageBookmarked(req.userId, req.params.messageId);
+			res.json(result);
+		} catch (error) {
+			console.error("Error checking bookmark:", error);
+			res.status(500).json({ message: "Failed to check bookmark" });
+		}
+	});
+
+	// Update bookmark
+	app.patch("/api/bookmarks/:id", isAuthenticated, async (req, res) => {
+		try {
+			const { category, note } = req.body;
+			const bookmark = await storage.updateBookmark(req.params.id, { category, note });
+			if (!bookmark) {
+				return res.status(404).json({ message: "Bookmark not found" });
+			}
+			res.json(bookmark);
+		} catch (error) {
+			console.error("Error updating bookmark:", error);
+			res.status(500).json({ message: "Failed to update bookmark" });
+		}
+	});
+
+	// Delete bookmark
+	app.delete("/api/bookmarks/:id", isAuthenticated, async (req, res) => {
+		try {
+			await storage.deleteBookmark(req.params.id);
+			res.json({ message: "Bookmark deleted successfully" });
+		} catch (error) {
+			console.error("Error deleting bookmark:", error);
+			res.status(500).json({ message: "Failed to delete bookmark" });
+		}
+	});
+
+	// ============================================
+	// FEEDBACK ROUTES
+	// ============================================
+
+	// Submit feedback (public)
+	app.post("/api/feedback", async (req, res) => {
+		try {
+			const schema = z.object({
+				name: z.string().min(1),
+				email: z.string().email(),
+				message: z.string().min(1),
+				rating: z.number().min(1).max(5).optional(),
+			});
+
+			const data = schema.parse(req.body);
+			const feedback = await storage.createFeedback(data);
+
+			res.status(201).json({
+				message: "Feedback submitted successfully",
+				feedback,
+			});
+		} catch (error) {
+			console.error("Error submitting feedback:", error);
+			if (error instanceof z.ZodError) {
+				return res
+					.status(400)
+					.json({ message: "Invalid input", errors: error.errors });
+			}
+			res.status(500).json({ message: error.message || "Failed to submit feedback" });
+		}
+	});
+
+	// ============================================
+	// ADMIN ROUTES (PIN Protected: 7020)
+	// ============================================
+
+	// Verify admin PIN
+	app.post("/api/admin/verify", (req, res) => {
+		const { pin } = req.body;
+		if (pin === "7020") {
+			res.json({ success: true, message: "PIN verified" });
+		} else {
+			res.status(401).json({ success: false, message: "Invalid PIN" });
+		}
+	});
+
+	// Get all feedback (admin only)
+	app.get("/api/admin/feedback", (req, res) => {
+		const pin = req.headers["x-admin-pin"];
+		if (pin !== "7020") {
+			return res.status(401).json({ message: "Unauthorized" });
+		}
+
+		storage.getAllFeedback()
+			.then((feedback) => res.json(feedback))
+			.catch((error) => {
+				console.error("Error fetching feedback:", error);
+				res.status(500).json({ message: "Failed to fetch feedback" });
+			});
+	});
+
+	// Delete feedback (admin only)
+	app.delete("/api/admin/feedback/:id", async (req, res) => {
+		const pin = req.headers["x-admin-pin"];
+		if (pin !== "7020") {
+			return res.status(401).json({ message: "Unauthorized" });
+		}
+
+		try {
+			await storage.deleteFeedback(req.params.id);
+			res.json({ message: "Feedback deleted successfully" });
+		} catch (error) {
+			console.error("Error deleting feedback:", error);
+			res.status(500).json({ message: "Failed to delete feedback" });
+		}
+	});
+
 	const httpServer = createServer(app);
 	return httpServer;
 }

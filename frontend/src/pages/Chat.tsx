@@ -12,11 +12,14 @@ import { isUnauthorizedError } from "../lib/authUtils";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { ArrowDown, Sparkles, Loader2 } from "lucide-react";
 import { Button } from "../components/ui/button";
+import ChatSidebar from "../components/ChatSidebar";
 
 export default function Chat() {
 	const [isTyping, setIsTyping] = useState(false);
 	const [showUpgrade, setShowUpgrade] = useState(false);
 	const [showScrollButton, setShowScrollButton] = useState(false);
+	const [sidebarOpen, setSidebarOpen] = useState(false);
+	const [currentSessionId, setCurrentSessionId] = useState<string | undefined>();
 
 	const messagesEndRef = useRef<HTMLDivElement>(null);
 	const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -79,6 +82,11 @@ export default function Chat() {
 		setShowScrollButton(!isNearBottom);
 	};
 
+	// Check scroll position on mount and when messages change
+	useEffect(() => {
+		handleScroll();
+	}, [chatHistory]);
+
 	// 3. Send Message
 	const sendMessageMutation = useMutation({
 		mutationFn: async (message: string) => {
@@ -137,13 +145,49 @@ export default function Chat() {
 		<div className="flex flex-col h-[100dvh] bg-background text-foreground overflow-hidden">
 			<ChatHeader />
 
+			{/* Chat Sidebar */}
+			<ChatSidebar
+				isOpen={sidebarOpen}
+				onToggle={() => setSidebarOpen(!sidebarOpen)}
+				currentSessionId={currentSessionId}
+				onSessionSelect={(sessionId) => {
+					setCurrentSessionId(sessionId);
+					setSidebarOpen(false);
+				}}
+				onNewSession={async () => {
+					try {
+						// Create a new session (saves current chat to history)
+						const res = await apiRequest("POST", "/api/chat/sessions", {
+							title: "New Conversation"
+						});
+						const newSession = await res.json();
+						// Invalidate queries to refresh sidebar
+						queryClient.invalidateQueries({ queryKey: ["chat-sessions"] });
+						queryClient.invalidateQueries({ queryKey: ["/api/chat/history"] });
+						setCurrentSessionId(newSession.id);
+						setSidebarOpen(false);
+						toast({
+							title: "New conversation",
+							description: "Your previous chat is saved in history.",
+						});
+					} catch (error) {
+						toast({
+							title: "Error",
+							description: "Failed to start new conversation.",
+							variant: "destructive",
+						});
+					}
+				}}
+			/>
+
 			<main
 				ref={scrollContainerRef}
 				onScroll={handleScroll}
-				className="flex-1 overflow-y-auto relative scroll-smooth bg-slate-50/50 dark:bg-background/50"
+				className="flex-1 overflow-y-auto relative scroll-smooth bg-muted/20 dark:bg-background"
 			>
-				<div className="min-h-full flex flex-col items-center py-4">
-					<div className="w-full max-w-3xl flex-1 flex flex-col px-2 md:px-4">
+				{/* Chat content */}
+				<div className="min-h-full flex flex-col items-center py-6 md:py-10">
+					<div className="w-full max-w-4xl flex-1 flex flex-col px-4 md:px-6">
 						{chatHistory.length === 0 ? (
 							<div className="flex-1 flex flex-col justify-center my-auto">
 								<WelcomeCard onPromptClick={handlePromptClick} />
@@ -188,17 +232,36 @@ export default function Chat() {
 					</div>
 				</div>
 
-				{showScrollButton && (
-					<Button
-						size="icon"
-						variant="secondary"
-						className="absolute bottom-4 right-4 rounded-full shadow-lg opacity-90 hover:opacity-100 z-10"
-						onClick={() => scrollToBottom()}
-					>
-						<ArrowDown className="h-4 w-4" />
-					</Button>
-				)}
-			</main>
+				</main>
+
+			{/* Scroll to bottom button - outside main for proper z-index */}
+			{showScrollButton && (
+				<button
+					onClick={() => scrollToBottom()}
+					title="Scroll to latest"
+					style={{
+						position: 'fixed',
+						bottom: '112px',
+						left: '50%',
+						transform: 'translateX(-50%)',
+						zIndex: 50,
+						width: '48px',
+						height: '48px',
+						borderRadius: '50%',
+						backgroundColor: 'hsl(var(--primary))',
+						color: 'white',
+						boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.3)',
+						display: 'flex',
+						alignItems: 'center',
+						justifyContent: 'center',
+						border: 'none',
+						cursor: 'pointer',
+					}}
+					className="hover:opacity-90 transition-opacity"
+				>
+					<ArrowDown className="h-5 w-5" />
+				</button>
+			)}
 
 			<div className="bg-background/80 backdrop-blur-lg z-20 border-t">
 				<ChatInput

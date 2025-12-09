@@ -1,27 +1,42 @@
 import { cn } from "../lib/utils";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { Copy, Check, Sparkles } from "lucide-react";
+import { Copy, Check, Download, Share2, Bookmark, Volume2, VolumeX, BookmarkCheck } from "lucide-react";
 import { useState } from "react";
-import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Button } from "./ui/button";
+import { useTTS } from "../hooks/useTTS";
+import ShareModal from "./ShareModal";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiRequest } from "../lib/queryClient";
+import { useToast } from "../hooks/use-toast";
 
 interface ChatMessageProps {
+	id?: string;
 	message: string;
 	isBot: boolean;
 	timestamp?: Date;
 	userInitials?: string;
 	userImage?: string;
+	isBookmarked?: boolean;
+	bookmarkId?: string;
 }
 
 export default function ChatMessage({
+	id,
 	message,
 	isBot,
 	timestamp,
-	userInitials = "U",
-	userImage,
+	isBookmarked: initialBookmarked = false,
+	bookmarkId: initialBookmarkId,
 }: ChatMessageProps) {
 	const [copied, setCopied] = useState(false);
+	const [showShare, setShowShare] = useState(false);
+	const [isBookmarked, setIsBookmarked] = useState(initialBookmarked);
+	const [bookmarkId, setBookmarkId] = useState(initialBookmarkId);
+	
+	const { toast } = useToast();
+	const queryClient = useQueryClient();
+	const { speak, stop, isSpeaking, isSupported } = useTTS();
 
 	const handleCopy = () => {
 		navigator.clipboard.writeText(message);
@@ -29,81 +44,208 @@ export default function ChatMessage({
 		setTimeout(() => setCopied(false), 2000);
 	};
 
+	const handleDownload = () => {
+		const element = document.createElement("a");
+		const file = new Blob([message], { type: "text/plain" });
+		element.href = URL.createObjectURL(file);
+		element.download = `message-${new Date().getTime()}.txt`;
+		document.body.appendChild(element);
+		element.click();
+		document.body.removeChild(element);
+	};
+
+	const handleTTS = () => {
+		if (isSpeaking) {
+			stop();
+		} else {
+			speak(message);
+		}
+	};
+
+	// Bookmark mutation
+	const bookmarkMutation = useMutation({
+		mutationFn: async () => {
+			if (isBookmarked && bookmarkId) {
+				await apiRequest("DELETE", `/api/bookmarks/${bookmarkId}`);
+				return { action: "removed" };
+			} else {
+				const res = await apiRequest("POST", "/api/bookmarks", {
+					messageId: id,
+					messageContent: message,
+					category: "spiritual",
+				});
+				return res.json();
+			}
+		},
+		onSuccess: (data) => {
+			if (data.action === "removed") {
+				setIsBookmarked(false);
+				setBookmarkId(undefined);
+				toast({
+					title: "Bookmark removed",
+					description: "Message removed from your saved wisdom.",
+				});
+			} else {
+				setIsBookmarked(true);
+				setBookmarkId(data.id);
+				toast({
+					title: "Bookmarked!",
+					description: "Saved to your spiritual wisdom collection.",
+				});
+			}
+			queryClient.invalidateQueries({ queryKey: ["bookmarks"] });
+		},
+		onError: () => {
+			toast({
+				title: "Error",
+				description: "Failed to save bookmark. Please try again.",
+				variant: "destructive",
+			});
+		},
+	});
+
 	return (
-		<div
-			className={cn(
-				"group flex w-full gap-4 p-4 md:py-6 md:px-8 transition-colors duration-200",
-				isBot ? "bg-background" : "bg-muted/30"
-			)}
-		>
-			{/* Avatar Section */}
-			<div className="flex-shrink-0">
-				<Avatar
-					className={cn(
-						"h-8 w-8 ring-1 ring-border",
-						isBot ? "bg-amber-100" : "bg-blue-100"
-					)}
-				>
-					{isBot ? (
-						<div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-amber-100 to-orange-100">
-							<Sparkles className="h-4 w-4 text-amber-600" />
-						</div>
-					) : (
-						<>
-							<AvatarImage src={userImage} />
-							<AvatarFallback className="text-xs bg-blue-100 text-blue-700">
-								{userInitials}
-							</AvatarFallback>
-						</>
-					)}
-				</Avatar>
-			</div>
-
-			{/* Content Section */}
-			<div className="flex-1 space-y-2 overflow-hidden">
-				<div className="flex items-center justify-between">
-					<span className="text-sm font-semibold text-foreground/90">
-						{isBot ? "Vachanamrut AI" : "You"}
-					</span>
-					{timestamp && (
-						<span className="text-xs text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity">
-							{new Date(timestamp).toLocaleTimeString([], {
-								hour: "2-digit",
-								minute: "2-digit",
-							})}
-						</span>
-					)}
-				</div>
-
+		<>
+			<div
+				className={cn(
+					"group flex w-full gap-4 px-4 md:px-8 transition-colors duration-200",
+					isBot ? "justify-start" : "justify-end"
+				)}
+			>
 				<div
 					className={cn(
-						"prose prose-stone dark:prose-invert max-w-none text-[15px] leading-7",
-						isBot
-							? "font-serif text-foreground/90"
-							: "font-sans text-foreground/80"
+						"flex max-w-[95%] md:max-w-[75%] gap-2 md:gap-3",
+						isBot ? "flex-row" : "flex-row-reverse"
 					)}
 				>
-					<ReactMarkdown remarkPlugins={[remarkGfm]}>{message}</ReactMarkdown>
-				</div>
-
-				{/* Bot Actions */}
-				{isBot && (
-					<div className="flex items-center gap-2 pt-2 opacity-0 group-hover:opacity-100 transition-opacity">
-						<Button
-							variant="ghost"
-							size="icon"
-							className="h-6 w-6 text-muted-foreground hover:text-foreground"
-							onClick={handleCopy}
-						>
-							{copied ? (
-								<Check className="h-3.5 w-3.5" />
-							) : (
-								<Copy className="h-3.5 w-3.5" />
+					{/* Content Section */}
+					<div className={cn("flex flex-col min-w-0", isBot ? "items-start" : "items-end")}>
+						<div className={cn("flex items-center gap-2 mb-1", isBot ? "flex-row" : "flex-row-reverse")}>
+							<span className="text-sm font-semibold text-foreground/90">
+								{isBot ? "Vachanamrut AI" : "You"}
+							</span>
+							{timestamp && (
+								<span className="text-xs text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity">
+									{new Date(timestamp).toLocaleTimeString([], {
+										hour: "2-digit",
+										minute: "2-digit",
+									})}
+								</span>
 							)}
-						</Button>
+						</div>
+
+						<div
+							className={cn(
+								"rounded-2xl px-4 py-3 shadow-sm border",
+								isBot
+									? "bg-muted border-border text-foreground/90 rounded-tl-none"
+									: "bg-primary text-primary-foreground border-primary/20 rounded-tr-none"
+							)}
+						>
+							<div
+								className={cn(
+									"prose max-w-none text-[15px] leading-7 break-words",
+									isBot
+										? "prose-stone dark:prose-invert"
+										: "prose-invert"
+								)}
+							>
+								<ReactMarkdown remarkPlugins={[remarkGfm]}>{message}</ReactMarkdown>
+							</div>
+						</div>
+
+						{/* Actions */}
+						<div className={cn("flex items-center gap-1 pt-1 opacity-0 group-hover:opacity-100 transition-opacity", isBot ? "justify-start" : "justify-end")}>
+							<Button
+								variant="ghost"
+								size="icon"
+								className="h-6 w-6 text-muted-foreground hover:text-foreground"
+								onClick={handleCopy}
+								title="Copy text"
+							>
+								{copied ? (
+									<Check className="h-3.5 w-3.5" />
+								) : (
+									<Copy className="h-3.5 w-3.5" />
+								)}
+							</Button>
+							
+							<Button
+								variant="ghost"
+								size="icon"
+								className="h-6 w-6 text-muted-foreground hover:text-foreground"
+								onClick={handleDownload}
+								title="Download text"
+							>
+								<Download className="h-3.5 w-3.5" />
+							</Button>
+
+							{/* Share button */}
+							<Button
+								variant="ghost"
+								size="icon"
+								className="h-6 w-6 text-muted-foreground hover:text-foreground"
+								onClick={() => setShowShare(true)}
+								title="Share"
+							>
+								<Share2 className="h-3.5 w-3.5" />
+							</Button>
+
+							{/* TTS button (only for bot messages) */}
+							{isBot && isSupported && (
+								<Button
+									variant="ghost"
+									size="icon"
+									className={cn(
+										"h-6 w-6",
+										isSpeaking 
+											? "text-primary" 
+											: "text-muted-foreground hover:text-foreground"
+									)}
+									onClick={handleTTS}
+									title={isSpeaking ? "Stop speaking" : "Listen"}
+								>
+									{isSpeaking ? (
+										<VolumeX className="h-3.5 w-3.5" />
+									) : (
+										<Volume2 className="h-3.5 w-3.5" />
+									)}
+								</Button>
+							)}
+
+							{/* Bookmark button (only for bot messages) */}
+							{isBot && id && (
+								<Button
+									variant="ghost"
+									size="icon"
+									className={cn(
+										"h-6 w-6",
+										isBookmarked 
+											? "text-yellow-500" 
+											: "text-muted-foreground hover:text-foreground"
+									)}
+									onClick={() => bookmarkMutation.mutate()}
+									disabled={bookmarkMutation.isPending}
+									title={isBookmarked ? "Remove bookmark" : "Bookmark"}
+								>
+									{isBookmarked ? (
+										<BookmarkCheck className="h-3.5 w-3.5" />
+									) : (
+										<Bookmark className="h-3.5 w-3.5" />
+									)}
+								</Button>
+							)}
+						</div>
 					</div>
-				)}
+				</div>
 			</div>
-		</div>
+
+			{/* Share Modal */}
+			<ShareModal
+				isOpen={showShare}
+				onClose={() => setShowShare(false)}
+				content={message}
+			/>
+		</>
 	);
 }

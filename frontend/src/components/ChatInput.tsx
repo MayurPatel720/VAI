@@ -75,21 +75,22 @@ export default function ChatInput({ onSendMessage, disabled }: ChatInputProps) {
 	};
 
 	return (
-		<div className="w-full max-w-3xl mx-auto py-2 md:py-4 px-2 md:px-4">
-			<div className="relative flex items-end gap-2 p-2 bg-background dark:bg-zinc-900 border rounded-3xl shadow-lg ring-1 ring-black/5 dark:ring-white/10 focus-within:ring-2 focus-within:ring-primary/20 transition-all duration-300">
+		<div className="w-full max-w-4xl mx-auto py-4 px-4 md:px-6">
+			{/* Input Container */}
+			<div className="relative flex items-end gap-2 p-2 bg-muted/30 dark:bg-zinc-900/50 border border-input rounded-[26px] shadow-sm focus-within:ring-1 focus-within:ring-primary/30 focus-within:border-primary/30 transition-all duration-200">
 				<Textarea
 					ref={textareaRef}
 					value={message}
 					onChange={(e) => setMessage(e.target.value)}
 					onKeyDown={handleKeyDown}
 					onInput={handleInput}
-					placeholder="Ask a question..."
+					placeholder="Ask anything..."
 					disabled={disabled}
-					className="min-h-[44px] max-h-[150px] w-full resize-none border-0 bg-transparent py-3 px-4 text-base focus-visible:ring-0 placeholder:text-muted-foreground/50 shadow-none scrollbar-hide"
+					className="min-h-[44px] max-h-[200px] w-full resize-none border-0 bg-transparent py-3 px-4 text-base focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-muted-foreground/60 shadow-none scrollbar-hide"
 					rows={1}
 				/>
 
-				<div className="flex items-center gap-1 md:gap-2 pb-1 pr-1">
+				<div className="flex items-center gap-2 pb-1.5 pr-1.5 h-[44px] self-end">
 					<AnimatePresence mode="wait">
 						{isRecording ? (
 							<motion.div
@@ -101,7 +102,7 @@ export default function ChatInput({ onSendMessage, disabled }: ChatInputProps) {
 									onClick={toggleRecording}
 									size="icon"
 									variant="destructive"
-									className="h-8 w-8 md:h-9 md:w-9 rounded-full animate-pulse"
+									className="h-9 w-9 rounded-full animate-pulse shadow-sm"
 								>
 									<Square className="h-4 w-4 fill-current" />
 								</Button>
@@ -111,7 +112,7 @@ export default function ChatInput({ onSendMessage, disabled }: ChatInputProps) {
 								onClick={toggleRecording}
 								size="icon"
 								variant="ghost"
-								className="h-8 w-8 md:h-9 md:w-9 rounded-full text-muted-foreground"
+								className="h-9 w-9 rounded-full text-muted-foreground hover:bg-muted/60"
 								disabled={disabled}
 							>
 								<Mic className="h-5 w-5" />
@@ -124,18 +125,18 @@ export default function ChatInput({ onSendMessage, disabled }: ChatInputProps) {
 						disabled={!message.trim() || disabled}
 						size="icon"
 						className={cn(
-							"h-8 w-8 md:h-9 md:w-9 rounded-full transition-all duration-200",
+							"h-9 w-9 rounded-full transition-all duration-200 shadow-sm",
 							message.trim()
-								? "bg-primary text-primary-foreground"
+								? "bg-primary text-primary-foreground hover:bg-primary/90"
 								: "bg-muted text-muted-foreground opacity-50"
 						)}
 					>
-						<SendHorizontal className="h-4 w-4 md:h-5 md:w-5" />
+						<SendHorizontal className="h-5 w-5" />
 					</Button>
 				</div>
 			</div>
 
-			<p className="text-center text-[10px] text-muted-foreground mt-2 md:mt-3 pb-safe-area">
+			<p className="text-center text-xs text-muted-foreground mt-3 pb-safe-area">
 				Vachanamrut AI can make mistakes. Verify important guidance.
 			</p>
 		</div>
