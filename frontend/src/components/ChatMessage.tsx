@@ -1,11 +1,10 @@
 import { cn } from "../lib/utils";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { Copy, Check, Download, Share2, Bookmark, Volume2, VolumeX, BookmarkCheck } from "lucide-react";
+import { Copy, Check, Download, Share2, Bookmark, Volume2, BookmarkCheck } from "lucide-react";
 import { useState } from "react";
 import { Button } from "./ui/button";
 import { useTTS } from "../hooks/useTTS";
-import ShareModal from "./ShareModal";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "../lib/queryClient";
 import { useToast } from "../hooks/use-toast";
@@ -19,6 +18,7 @@ interface ChatMessageProps {
 	userImage?: string;
 	isBookmarked?: boolean;
 	bookmarkId?: string;
+	onShare?: (id: string, content: string) => void;
 }
 
 export default function ChatMessage({
@@ -28,9 +28,9 @@ export default function ChatMessage({
 	timestamp,
 	isBookmarked: initialBookmarked = false,
 	bookmarkId: initialBookmarkId,
+	onShare,
 }: ChatMessageProps) {
 	const [copied, setCopied] = useState(false);
-	const [showShare, setShowShare] = useState(false);
 	const [isBookmarked, setIsBookmarked] = useState(initialBookmarked);
 	const [bookmarkId, setBookmarkId] = useState(initialBookmarkId);
 	
@@ -185,7 +185,7 @@ export default function ChatMessage({
 								variant="ghost"
 								size="icon"
 								className="h-6 w-6 text-muted-foreground hover:text-foreground"
-								onClick={() => setShowShare(true)}
+								onClick={() => onShare && onShare(id || "", message)}
 								title="Share"
 							>
 								<Share2 className="h-3.5 w-3.5" />
@@ -205,11 +205,7 @@ export default function ChatMessage({
 									onClick={handleTTS}
 									title={isSpeaking ? "Stop speaking" : "Listen"}
 								>
-									{isSpeaking ? (
-										<VolumeX className="h-3.5 w-3.5" />
-									) : (
-										<Volume2 className="h-3.5 w-3.5" />
-									)}
+									<Volume2 className={cn("h-3.5 w-3.5", isSpeaking ? "animate-pulse" : "")} />
 								</Button>
 							)}
 
@@ -239,13 +235,6 @@ export default function ChatMessage({
 					</div>
 				</div>
 			</div>
-
-			{/* Share Modal */}
-			<ShareModal
-				isOpen={showShare}
-				onClose={() => setShowShare(false)}
-				content={message}
-			/>
 		</>
 	);
 }

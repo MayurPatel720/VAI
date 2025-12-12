@@ -12,6 +12,7 @@ import { isUnauthorizedError } from "../lib/authUtils";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { ArrowDown, Sparkles, Loader2 } from "lucide-react";
 import ChatSidebar from "../components/ChatSidebar";
+import ShareModal from "../components/ShareModal";
 
 export default function Chat() {
 	const [isTyping, setIsTyping] = useState(false);
@@ -52,13 +53,30 @@ export default function Chat() {
 		if (remaining === 0 && used > 0) setShowUpgrade(true);
 	}, [remaining, used]);
 
+	// Fetch active session on mount
+	useEffect(() => {
+		if (isAuthenticated && !currentSessionId) {
+			apiRequest("GET", "/api/chat/sessions/active")
+				.then((res) => res.json())
+				.then((session) => {
+					if (session && session.id) {
+						setCurrentSessionId(session.id);
+					}
+				})
+				.catch((err) => console.error("Failed to load active session", err));
+		}
+	}, [isAuthenticated]);
+
 	// 2. Fetch Chat History
 	const { data: chatHistory = [] } = useQuery({
-		queryKey: ["/api/chat/history"],
+		queryKey: ["/api/chat/history", currentSessionId],
 		enabled: isAuthenticated,
 		retry: false,
 		queryFn: async () => {
-			const res = await apiRequest("GET", "/api/chat/history");
+			const url = currentSessionId 
+				? `/api/chat/history?sessionId=${currentSessionId}` 
+				: "/api/chat/history";
+			const res = await apiRequest("GET", url);
 			return res.json();
 		},
 	});
@@ -91,12 +109,14 @@ export default function Chat() {
 		mutationFn: async (message: string) => {
 			const response = await apiRequest("POST", "/api/chat/message", {
 				message,
+				sessionId: currentSessionId,
 			});
 			return response.json();
 		},
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: ["/api/chat/history"] });
 			queryClient.invalidateQueries({ queryKey: ["chat-usage"] });
+			queryClient.invalidateQueries({ queryKey: ["chat-sessions"] });
 			setIsTyping(false);
 		},
 		onError: (error: any) => {
@@ -137,6 +157,17 @@ export default function Chat() {
 
 	const handlePromptClick = (prompt: string) => {
 		handleSendMessage(prompt);
+	};
+
+	// Share State
+	const [isShareOpen, setIsShareOpen] = useState(false);
+	const [shareContent, setShareContent] = useState("");
+	const [shareMessageId, setShareMessageId] = useState("");
+
+	const handleShare = (messageId: string, content: string) => {
+		setShareContent(content);
+		setShareMessageId(messageId);
+		setIsShareOpen(true);
 	};
 
 	return (
@@ -196,6 +227,7 @@ export default function Chat() {
 								{chatHistory.map((message: any) => (
 									<ChatMessage
 										key={message.id}
+										id={message.id}
 										message={message.message}
 										isBot={message.isBot}
 										timestamp={
@@ -204,6 +236,7 @@ export default function Chat() {
 												: undefined
 										}
 										userInitials={user?.firstName?.[0] || "U"}
+										onShare={(id, content) => handleShare(id, content)}
 									/>
 								))}
 
@@ -272,6 +305,15 @@ export default function Chat() {
 			</div>
 
 			<UpgradeModal open={showUpgrade} onClose={() => setShowUpgrade(false)} />
+			
+			<ShareModal
+				isOpen={isShareOpen}
+				onClose={() => setIsShareOpen(false)}
+				content={shareContent}
+				messageId={shareMessageId}
+				sessionId={currentSessionId}
+				toggleEnabled={true} // Allow switching to conversation sharing
+			/>
 		</div>
 	);
 }

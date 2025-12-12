@@ -6,16 +6,6 @@
 @tailwind components;
 @tailwind utilities;
 
-@layer base {
-
-  html,
-  body {
-    overflow-x: hidden;
-    width: 100%;
-    position: relative;
-  }
-}
-
 /* LIGHT MODE */
 :root {
   --button-outline: rgba(0, 0, 0, .10);

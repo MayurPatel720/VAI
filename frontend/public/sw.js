@@ -63,6 +63,12 @@ self.addEventListener('fetch', (event) => {
   // Skip cross-origin requests
   if (url.origin !== location.origin) return;
 
+  // Skip video files (they use range requests which return 206 status)
+  if (url.pathname.match(/\.(mp4|webm|ogg)$/i)) {
+    event.respondWith(fetch(request));
+    return;
+  }
+
   // Network-only for certain routes
   if (NETWORK_ONLY.some(route => url.pathname.startsWith(route))) {
     event.respondWith(fetch(request));

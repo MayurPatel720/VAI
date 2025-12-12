@@ -35,6 +35,7 @@ const subscriptionSchema = new mongoose.Schema(
 const chatMessageSchema = new mongoose.Schema(
 	{
 		userId: { type: String, required: true, index: true },
+		sessionId: { type: String, required: false, index: true }, // Added sessionId
 		message: { type: String, required: true },
 		isBot: { type: Boolean, required: true },
 	},
@@ -82,6 +83,17 @@ const bookmarkSchema = new mongoose.Schema(
 	{ timestamps: true }
 );
 
+// Share Link Schema - For public sharing
+const shareLinkSchema = new mongoose.Schema(
+	{
+		id: { type: String, required: true, unique: true }, // nanoid token
+		type: { type: String, enum: ['message', 'conversation'], required: true },
+		referenceId: { type: String, required: true }, // messageId or sessionId
+		content: { type: mongoose.Schema.Types.Mixed }, // Store snapshot
+	},
+	{ timestamps: true }
+);
+
 // Compound index for user bookmarks
 bookmarkSchema.index({ userId: 1, createdAt: -1 });
 
@@ -95,6 +107,7 @@ const ChatMessage = mongoose.model("ChatMessage", chatMessageSchema);
 const Feedback = mongoose.model("Feedback", feedbackSchema);
 const ChatSession = mongoose.model("ChatSession", chatSessionSchema);
 const Bookmark = mongoose.model("Bookmark", bookmarkSchema);
+const ShareLink = mongoose.model("ShareLink", shareLinkSchema);
 
 // ============================================
 // STORAGE CLASS
@@ -271,34 +284,53 @@ class Storage {
 		await this.connect();
 		const chatMessage = new ChatMessage(data);
 		await chatMessage.save();
+		
+		// Update session stats if sessionId exists
+		if (data.sessionId) {
+			await ChatSession.findByIdAndUpdate(data.sessionId, {
+				$inc: { messageCount: 1 },
+				lastMessageAt: new Date(),
+			});
+		}
 
 		return {
 			id: chatMessage._id.toString(),
 			userId: chatMessage.userId,
+			sessionId: chatMessage.sessionId,
 			message: chatMessage.message,
 			isBot: chatMessage.isBot,
 			createdAt: chatMessage.createdAt,
 		};
 	}
 
-	async getChatMessages(userId, limit = 100) {
+	async getChatMessages(userId, sessionId = null, limit = 100) {
 		await this.connect();
-		const messages = await ChatMessage.find({ userId })
+		const query = { userId };
+		if (sessionId) {
+			query.sessionId = sessionId;
+		}
+
+		const messages = await ChatMessage.find(query)
 			.sort({ createdAt: -1 })
 			.limit(limit);
 
 		return messages.reverse().map((msg) => ({
 			id: msg._id.toString(),
 			userId: msg.userId,
+			sessionId: msg.sessionId,
 			message: msg.message,
 			isBot: msg.isBot,
 			createdAt: msg.createdAt,
 		}));
 	}
 
-	async deleteChatMessages(userId) {
+	async deleteChatMessages(userId, sessionId = null) {
 		await this.connect();
-		await ChatMessage.deleteMany({ userId });
+		const query = { userId };
+		if (sessionId) {
+			query.sessionId = sessionId;
+		}
+		await ChatMessage.deleteMany(query);
 	}
 
 	async deleteAllChatMessages() {
@@ -574,6 +606,30 @@ class Storage {
 			bookmarkId: bookmark._id.toString(),
 			category: bookmark.category,
 		} : { isBookmarked: false };
+	}
+
+	// ============================================
+	// SHARE LINK METHODS
+	// ============================================
+
+	async createShareLink(type, referenceId, content) {
+		await this.connect();
+		// Simple random token generation
+		const token = Math.random().toString(36).substring(2, 10) + Math.random().toString(36).substring(2, 10);
+		
+		const shareLink = new ShareLink({
+			id: token,
+			type,
+			referenceId,
+			content
+		});
+		await shareLink.save();
+		return shareLink;
+	}
+
+	async getShareLink(token) {
+		await this.connect();
+		return await ShareLink.findOne({ id: token });
 	}
 }
 

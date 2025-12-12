@@ -101,35 +101,37 @@ export default function ChatSidebar({
 
 	return (
 		<>
-			{/* Toggle Button - Always visible with inline styles */}
-			<button
-				onClick={onToggle}
-				title="Chat History"
-				style={{
-					position: 'fixed',
-					left: '16px',
-					top: '80px',
-					zIndex: 9998,
-					width: '44px',
-					height: '44px',
-					borderRadius: '12px',
-					backgroundColor: 'var(--card)',
-					border: '2px solid hsl(var(--primary) / 0.3)',
-					boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.2)',
-					display: 'flex',
-					alignItems: 'center',
-					justifyContent: 'center',
-					cursor: 'pointer',
-					transition: 'all 0.2s ease',
-				}}
-				className="hover:scale-110 hover:shadow-xl"
-			>
-				{isOpen ? (
-					<ChevronLeft className="h-5 w-5 text-primary" />
-				) : (
-					<History className="h-5 w-5 text-primary" />
+			{/* Toggle Button - Only visible when sidebar is closed */}
+			<AnimatePresence>
+				{!isOpen && (
+					<motion.button
+						initial={{ scale: 0, opacity: 0 }}
+						animate={{ scale: 1, opacity: 1 }}
+						exit={{ scale: 0, opacity: 0 }}
+						onClick={onToggle}
+						title="Chat History"
+						style={{
+							position: 'fixed',
+							left: '16px',
+							top: '80px',
+							zIndex: 40,
+							width: '44px',
+							height: '44px',
+							borderRadius: '12px',
+							backgroundColor: 'var(--card)',
+							border: '2px solid hsl(var(--primary) / 0.3)',
+							boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.2)',
+							display: 'flex',
+							alignItems: 'center',
+							justifyContent: 'center',
+							cursor: 'pointer',
+						}}
+						className="hover:scale-110 hover:shadow-xl transition-transform"
+					>
+						<History className="h-5 w-5 text-primary" />
+					</motion.button>
 				)}
-			</button>
+			</AnimatePresence>
 
 			{/* Sidebar */}
 			<AnimatePresence>
@@ -140,7 +142,7 @@ export default function ChatSidebar({
 							initial={{ opacity: 0 }}
 							animate={{ opacity: 1 }}
 							exit={{ opacity: 0 }}
-							className="fixed inset-0 bg-black/50 z-[90]"
+							className="fixed inset-0 bg-black/50 z-[90] md:bg-transparent md:pointer-events-none"
 							onClick={onToggle}
 						/>
 
@@ -150,7 +152,7 @@ export default function ChatSidebar({
 							animate={{ x: 0 }}
 							exit={{ x: -300 }}
 							transition={{ type: "spring", damping: 25, stiffness: 300 }}
-							className="fixed left-0 top-0 bottom-0 w-72 md:w-80 bg-card border-r border-border z-[95] flex flex-col shadow-2xl"
+							className="fixed left-0 top-0 bottom-0 w-72 md:w-80 bg-card border-r border-border z-[95] flex flex-col shadow-2xl pt-20 md:pt-0"
 						>
 							{/* Header */}
 							<div className="p-4 border-b border-border">
@@ -160,9 +162,8 @@ export default function ChatSidebar({
 										variant="ghost"
 										size="icon"
 										onClick={onToggle}
-										className="md:hidden"
 									>
-										<X className="h-4 w-4" />
+										<ChevronLeft className="h-5 w-5" />
 									</Button>
 								</div>
 
@@ -228,9 +229,9 @@ export default function ChatSidebar({
 														</Button>
 													</div>
 												) : (
-													<button
+													<div
 														onClick={() => onSessionSelect(session.id)}
-														className="w-full p-3 text-left"
+														className="w-full p-3 text-left cursor-pointer"
 													>
 														<div className="flex items-start justify-between gap-2">
 															<div className="flex-1 min-w-0">
@@ -268,7 +269,7 @@ export default function ChatSidebar({
 																</Button>
 															</div>
 														</div>
-													</button>
+													</div>
 												)}
 											</div>
 										))}

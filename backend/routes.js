@@ -255,7 +255,7 @@ async function registerRoutes(app) {
 			const today = new Date();
 			today.setHours(0, 0, 0, 0);
 
-			// Get all messages for the user
+			// Get all messages for the user (we rely on global usage count, not per session)
 			const messages = await storage.getChatMessages(req.userId);
 
 			// Count only USER messages (not bot)
@@ -272,7 +272,8 @@ async function registerRoutes(app) {
 
 	app.get("/api/chat/history", isAuthenticated, async (req, res) => {
 		try {
-			const messages = await storage.getChatMessages(req.userId);
+			const sessionId = req.query.sessionId || null;
+			const messages = await storage.getChatMessages(req.userId, sessionId);
 			res.json(messages);
 		} catch (error) {
 			console.error("Error fetching chat history:", error);
@@ -286,9 +287,10 @@ async function registerRoutes(app) {
 		try {
 			const schema = z.object({
 				message: z.string().min(1),
+				sessionId: z.string().optional(),
 			});
 
-			const { message } = schema.parse(req.body);
+			const { message, sessionId } = schema.parse(req.body);
 
 			// ===============================
 			// CHECK CHAT LIMITS
@@ -328,7 +330,41 @@ async function registerRoutes(app) {
 				userId: req.userId,
 				message,
 				isBot: false,
+				sessionId,
 			});
+
+			// ===============================
+			// AUTO-TITLE (if new session)
+			// ===============================
+			if (sessionId) {
+				// We don't await this to keep response fast
+				storage.getSession(sessionId).then(async (session) => {
+					if (session && session.title === "New Conversation") {
+						try {
+							const titleCompletion = await openai.chat.completions.create({
+								model: "gpt-4o-mini",
+								messages: [
+									{
+										role: "system",
+										content: "Generate a very short, concise title (max 5 words) for this chat conversation based on the user's first message. Do not use quotes.",
+									},
+									{
+										role: "user",
+										content: message,
+									},
+								],
+								max_tokens: 15,
+							});
+							const newTitle = titleCompletion.choices[0].message.content?.trim();
+							if (newTitle) {
+								await storage.updateSession(sessionId, { title: newTitle });
+							}
+						} catch (e) {
+							console.error("Failed to generate auto-title", e);
+						}
+					}
+				});
+			}
 
 			// ===============================
 			// AI RESPONSE
@@ -381,6 +417,7 @@ CUSTOM RULES:
 				userId: req.userId,
 				message: botResponse,
 				isBot: true,
+				sessionId,
 			});
 
 			res.json(savedMessage);
@@ -578,6 +615,88 @@ CUSTOM RULES:
 		} catch (error) {
 			console.error("Error deleting bookmark:", error);
 			res.status(500).json({ message: "Failed to delete bookmark" });
+		}
+	});
+
+	// ============================================
+	// SHARE ROUTES
+	// ============================================
+
+	// Create share link (requires auth)
+	app.post("/api/share", isAuthenticated, async (req, res) => {
+		try {
+			const schema = z.object({
+				type: z.enum(['message', 'conversation']),
+				referenceId: z.string(),
+				content: z.any().optional(), // Allow string or array
+			});
+
+			const { type, referenceId, content: parsedContent } = schema.parse(req.body);
+			let content;
+
+			// Fetch snapshot of content based on type
+			if (type === 'message') {
+				// We need to fetch the specific message
+				// For simplicity, we might request the content from frontend or fetch it here.
+				// Better to fetch here for security/integrity.
+				// However, getChatMessages returns array. We need a way to get single message.
+				// For now, if it's a bookmark, we have content. If it's chat history, we iterate.
+				// Let's rely on frontend sending content for 'message' type or fetch if possible.
+				// Wait, the safest is to fetch. But our storage lacks getMessageById.
+				// Let's add content to the request body for 'message' type as a temporary robust solution,
+				// or assume referenceId is enough if we had getMessage.
+				// Given storage limitations, let's accept content snapshot from client for message,
+				// but for conversation we fetch fresh from DB.
+				
+				// Actually, for 'message' type from chat, we can just store the referenceId,
+				// but to display it publicly we need the text.
+				// Let's update the schema to strictly require content for 'message'.
+			}
+
+			// Refined Approach: 
+			// 1. If type='conversation', we fetch all messages for sessionId.
+			// 2. If type='message', we expect content in body OR we implement getMessage(id).
+			// Let's implement fetching for conversation, and accept snapshot for message (simplest for now).
+			
+			if (type === 'conversation') {
+				const messages = await storage.getChatMessages(req.userId, referenceId);
+				content = messages; // Snapshot of current conversation
+			} else {
+				content = parsedContent; // Expect content text for single message
+			}
+
+			const shareLink = await storage.createShareLink(type, referenceId, content);
+			res.json({ 
+				token: shareLink.id,
+				url: `${req.protocol}://${req.get('host')}/share/${shareLink.id}` 
+			});
+		} catch (error) {
+			console.error("Error creating share link:", error);
+			res.status(500).json({ message: "Failed to create share link" });
+		}
+	});
+
+	// Get shared content (PUBLIC)
+	app.get("/api/share/:token", async (req, res) => {
+		try {
+			const shareLink = await storage.getShareLink(req.params.token);
+			if (!shareLink) {
+				return res.status(404).json({ message: "Link not found or expired" });
+			}
+			
+			// If it's a conversation, we might want to re-fetch to get latest? 
+			// Or stick to snapshot? Snapshot is safer for "sharing state at time X".
+			// But for dynamic chat, live is better.
+			// Let's stick to the SNAPSHOT stored in shareLink for consistency.
+			
+			res.json({
+				type: shareLink.type,
+				content: shareLink.content,
+				createdAt: shareLink.createdAt
+			});
+		} catch (error) {
+			console.error("Error fetching share link:", error);
+			res.status(500).json({ message: "Failed to fetch shared content" });
 		}
 	});
 

@@ -16,7 +16,7 @@ const Footer = () => {
 				bg-gradient-to-br from-orange-50 via-white to-orange-100 
 				dark:from-[#0b0b0b] dark:via-[#111] dark:to-[#0c0c0c]
 				border-orange-200 dark:border-[#1f1f1f]
-				text-center transition-colors duration-500 overflow-x-hidden"
+				text-center transition-colors duration-500"
 		>
 			{/* Glowing Line */}
 			<div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-orange-500 to-transparent animate-pulse opacity-60"></div>
