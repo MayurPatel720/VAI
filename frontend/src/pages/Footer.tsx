@@ -70,12 +70,7 @@ const Footer = () => {
 					>
 						Pricing
 					</a>
-					<a
-						onClick={() => navigate("/chat")}
-						className="text-orange-700 dark:text-gray-400 hover:text-orange-500 dark:hover:text-orange-400 cursor-pointer transition"
-					>
-						Chat
-					</a>
+					
 					<a
 						onClick={() => setShowFeedback(true)}
 						className="text-orange-700 dark:text-gray-400 hover:text-orange-500 dark:hover:text-orange-400 cursor-pointer transition"

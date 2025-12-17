@@ -5,8 +5,18 @@ import { useAuth } from "../hooks/useAuth";
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "../lib/queryClient";
 import { Button } from "./ui/button";
-import { Download, Search, X } from "lucide-react";
+import { Download, Search, X, User, Bookmark, LogOut } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
+import { motion } from "framer-motion";
+import ChatExportModal from "./ChatExportModal";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuLabel,
+	DropdownMenuSeparator,
+	DropdownMenuTrigger,
+} from "./ui/dropdown-menu";
 
 interface ChatHeaderProps {
 	onSearch?: (term: string) => void;
@@ -16,6 +26,7 @@ export default function ChatHeader({ onSearch }: ChatHeaderProps) {
 	const navigate = useNavigate();
 	const { user } = useAuth();
 	const [showSearch, setShowSearch] = useState(false);
+	const [showExport, setShowExport] = useState(false);
 	const [searchTerm, setSearchTerm] = useState("");
 	const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -143,42 +154,84 @@ export default function ChatHeader({ onSearch }: ChatHeaderProps) {
 				{/* Right: Actions */}
 				<div className="flex items-center gap-1 flex-shrink-0">
 					{!showSearch && (
+						<motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+							<Button
+								variant="ghost"
+								size="icon"
+								className="text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+								onClick={() => setShowSearch(true)}
+								title="Search chats"
+							>
+								<Search className="h-4 w-4" />
+							</Button>
+						</motion.div>
+					)}
+
+					<motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
 						<Button
 							variant="ghost"
 							size="icon"
-							className="text-muted-foreground hover:text-foreground"
-							onClick={() => setShowSearch(true)}
-							title="Search chats"
+							className="hidden md:flex text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+							onClick={() => setShowExport(true)}
+							title="Export Conversation"
 						>
-							<Search className="h-4 w-4" />
+							<Download className="h-4 w-4" />
 						</Button>
-					)}
-
-					<Button
-						variant="ghost"
-						size="icon"
-						className="hidden md:flex text-muted-foreground hover:text-foreground"
-						onClick={() => {
-							const history = document.querySelectorAll(".prose");
-							let text = "";
-							history.forEach((el, index) => {
-								const role = index % 2 === 0 ? "User" : "AI";
-								text += `[${role}]: ${el.textContent}\n\n`;
-							});
-							const blob = new Blob([text], { type: "text/plain" });
-							const url = URL.createObjectURL(blob);
-							const a = document.createElement("a");
-							a.href = url;
-							a.download = `conversation-${new Date().toISOString()}.txt`;
-							a.click();
-						}}
-						title="Export Conversation"
-					>
-						<Download className="h-4 w-4" />
-					</Button>
+					</motion.div>
+					
 					<ThemeToggle />
+					
+					{/* User Menu */}
+					<DropdownMenu>
+						<DropdownMenuTrigger asChild>
+							<motion.button 
+								whileHover={{ scale: 1.05 }} 
+								whileTap={{ scale: 0.95 }}
+								className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-sm font-semibold text-primary hover:bg-primary/20 transition-colors"
+							>
+								{user?.firstName?.[0] || "U"}
+							</motion.button>
+						</DropdownMenuTrigger>
+						<DropdownMenuContent align="end" className="w-48">
+							<DropdownMenuLabel className="font-normal">
+								<div className="flex flex-col space-y-1">
+									<p className="text-sm font-medium">{user?.firstName} {user?.lastName}</p>
+									<p className="text-xs text-muted-foreground">{user?.email}</p>
+								</div>
+							</DropdownMenuLabel>
+							<DropdownMenuSeparator />
+							<DropdownMenuItem onClick={() => navigate("/profile")}>
+								<User className="mr-2 h-4 w-4" />
+								Profile
+							</DropdownMenuItem>
+							<DropdownMenuItem onClick={() => navigate("/search")}>
+								<Search className="mr-2 h-4 w-4" />
+								Advanced Search
+							</DropdownMenuItem>
+							<DropdownMenuItem onClick={() => navigate("/bookmarks")}>
+								<Bookmark className="mr-2 h-4 w-4" />
+								Bookmarks
+							</DropdownMenuItem>
+							<DropdownMenuSeparator />
+							<DropdownMenuItem 
+								onClick={() => {
+									localStorage.removeItem("token");
+									window.location.href = "/login";
+								}}
+								className="text-destructive focus:text-destructive"
+							>
+								<LogOut className="mr-2 h-4 w-4" />
+								Logout
+							</DropdownMenuItem>
+						</DropdownMenuContent>
+					</DropdownMenu>
 				</div>
 			</div>
+
+			<ChatExportModal 
+				isOpen={showExport} 
+				onClose={() => setShowExport(false)} 
+			/>
 		</header>
 	);
 }

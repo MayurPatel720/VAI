@@ -57,7 +57,7 @@ export default function Landing() {
 							alt="Vachanamrut Logo"
 							className="w-10 h-10 object-contain"
 						/>
-						<h1 className="text-2xl font-bold text-foreground">Vachanamrut</h1>
+						<h1 className="text-xl font-bold text-foreground">Vachanamrut AI</h1>
 					</div>
 					<div className="flex items-center gap-2">
 						<ThemeToggle />
@@ -83,7 +83,7 @@ export default function Landing() {
 								{/* FIXED SECTION START */}
 								<DropdownMenuContent
 									align="end"
-									className="w-56 z-50 bg-white dark:bg-stone-900 border border-gray-200 dark:border-gray-800 shadow-xl"
+									className="w-56 z-50 bg-popover border border-gray-200 dark:border-gray-800 shadow-xl"
 								>
 									<DropdownMenuLabel>
 										<div className="flex flex-col space-y-1">
@@ -100,6 +100,28 @@ export default function Landing() {
 											)}
 										</div>
 									</DropdownMenuLabel>
+									<DropdownMenuSeparator className="bg-gray-200 dark:bg-gray-700" />
+									<DropdownMenuItem
+										className="cursor-pointer focus:bg-gray-100 dark:focus:bg-zinc-800"
+										onClick={() => navigate("/profile")}
+									>
+										<User className="mr-2 h-4 w-4" />
+										Profile
+									</DropdownMenuItem>
+									<DropdownMenuItem
+										className="cursor-pointer focus:bg-gray-100 dark:focus:bg-zinc-800"
+										onClick={() => navigate("/search")}
+									>
+										<Sparkles className="mr-2 h-4 w-4" />
+										Advanced Search
+									</DropdownMenuItem>
+									<DropdownMenuItem
+										className="cursor-pointer focus:bg-gray-100 dark:focus:bg-zinc-800"
+										onClick={() => navigate("/bookmarks")}
+									>
+										<ScrollText className="mr-2 h-4 w-4" />
+										Bookmarks
+									</DropdownMenuItem>
 									<DropdownMenuSeparator className="bg-gray-200 dark:bg-gray-700" />
 									<DropdownMenuItem
 										className="cursor-pointer focus:bg-gray-100 dark:focus:bg-zinc-800"

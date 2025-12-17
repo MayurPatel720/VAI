@@ -6,6 +6,7 @@ const crypto = require("crypto");
 const { z } = require("zod");
 const OpenAI = require("openai");
 const bcrypt = require("bcrypt");
+const { searchRelevantTexts, buildEnhancedPrompt, isEnglishQuery } = require("./services/rag");
 
 const openai = new OpenAI({
 	apiKey: process.env.OPENAI_API_KEY,
@@ -142,6 +143,46 @@ async function registerRoutes(app) {
 		} catch (error) {
 			console.error("Error fetching user:", error);
 			res.status(500).json({ message: "Failed to fetch user" });
+		}
+	});
+
+	// Change password
+	app.put("/api/auth/change-password", isAuthenticated, async (req, res) => {
+		try {
+			const schema = z.object({
+				currentPassword: z.string(),
+				newPassword: z.string().min(6),
+			});
+
+			const { currentPassword, newPassword } = schema.parse(req.body);
+
+			// Get user with password
+			const user = await storage.getUserByIdWithPassword(req.userId);
+			if (!user) {
+				return res.status(404).json({ message: "User not found" });
+			}
+
+			// Verify current password
+			const isValid = await bcrypt.compare(currentPassword, user.password);
+			if (!isValid) {
+				return res.status(401).json({ message: "Current password is incorrect" });
+			}
+
+			// Hash new password
+			const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+			// Update password
+			await storage.updateUserPassword(req.userId, hashedPassword);
+
+			res.json({ message: "Password changed successfully" });
+		} catch (error) {
+			console.error("Password change error:", error);
+			if (error instanceof z.ZodError) {
+				return res
+					.status(400)
+					.json({ message: "Invalid input", errors: error.errors });
+			}
+			res.status(500).json({ message: error.message || "Failed to change password" });
 		}
 	});
 
@@ -367,15 +408,23 @@ async function registerRoutes(app) {
 			}
 
 			// ===============================
-			// AI RESPONSE
-			// ===============================
+		// AI RESPONSE WITH CONVERSATION MEMORY
+		// ===============================
 
-			const completion = await openai.chat.completions.create({
-				model: "gpt-4o-mini",
-				messages: [
-					{
-						role: "system",
-						content: `You are Vachanamrut AI, a divine spiritual guide and companion based on the eternal wisdom of the Vachanamrut and the teachings of Bhagwan Swaminarayan.
+		// Build conversation history for context (last 10 messages)
+		const sessionMessages = sessionId 
+			? await storage.getChatMessages(req.userId, sessionId)
+			: [];
+		
+		// Convert to OpenAI message format (last 10 messages for context)
+		const conversationHistory = sessionMessages
+			.slice(-10) // Last 10 messages
+			.map(msg => ({
+				role: msg.isBot ? "assistant" : "user",
+				content: msg.message
+			}));
+
+		const systemPrompt = `You are Vachanamrut AI, a divine spiritual guide and companion based on the eternal wisdom of the Vachanamrut and the teachings of Bhagwan Swaminarayan.
 
 YOUR IDENTITY:
 - You are NOT ChatGPT, OpenAI, or any other generic AI.
@@ -397,16 +446,19 @@ CUSTOM RULES:
 2. If a user is distressed, offer spiritual consolation from the Vachanamrut (e.g., Antya 26 about depression/low mood).
 3. Do not Hallucinate citations. If you don't know a specific Vachanamrut, speak to the principles generally.
 4. Keep answers concise but profound.
-5. Always bring the focus back to Bhagwan, devotion (Bhakti), and Dharma.`,
-					},
-					{
-						role: "user",
-						content: message,
-					},
-				],
-				temperature: 0.7,
-				max_tokens: 500,
-			});
+5. Always bring the focus back to Bhagwan, devotion (Bhakti), and Dharma.
+6. You have memory of this conversation. Reference previous messages when relevant to provide continuity.`;
+
+		const completion = await openai.chat.completions.create({
+			model: "gpt-4o-mini",
+			messages: [
+				{ role: "system", content: systemPrompt },
+				...conversationHistory,  // Include conversation history
+				{ role: "user", content: message }  // Current message
+			],
+			temperature: 0.7,
+			max_tokens: 800,  // Increased for better responses
+		});
 
 			const botResponse =
 				completion.choices[0].message.content ||
@@ -426,6 +478,145 @@ CUSTOM RULES:
 			res
 				.status(500)
 				.json({ message: error.message || "Failed to process message" });
+		}
+	});
+
+	// ============================================
+	// STREAMING CHAT ENDPOINT (SSE)
+	// ============================================
+	app.post("/api/chat/stream", isAuthenticated, async (req, res) => {
+		try {
+			const schema = z.object({
+				message: z.string().min(1),
+				sessionId: z.string().optional(),
+			});
+
+			const { message, sessionId } = schema.parse(req.body);
+
+			// Check chat limits
+			const subscription = await storage.getUserSubscription(req.userId);
+			const LIMITS = { FREE: 3, silver: 30, gold: 60, premium: 150 };
+			const plan = subscription?.plan || "FREE";
+			const maxChats = LIMITS[plan];
+
+			const today = new Date();
+			today.setHours(0, 0, 0, 0);
+			const allMessages = await storage.getChatMessages(req.userId);
+			const todayCount = allMessages.filter(
+				(m) => !m.isBot && new Date(m.createdAt) >= today
+			).length;
+
+			if (todayCount >= maxChats) {
+				return res.status(403).json({
+					message: "Chat limit reached for today",
+					remaining: 0,
+				});
+			}
+
+			// Save user message
+			await storage.createChatMessage({
+				userId: req.userId,
+				message,
+				isBot: false,
+				sessionId,
+			});
+
+			// Auto-title generation (non-blocking)
+			if (sessionId) {
+				storage.getSession(sessionId).then(async (session) => {
+					if (session && session.title === "New Conversation") {
+						try {
+							const titleCompletion = await openai.chat.completions.create({
+								model: "gpt-4o-mini",
+								messages: [
+									{ role: "system", content: "Generate a very short, concise title (max 5 words) for this chat conversation. Do not use quotes." },
+									{ role: "user", content: message },
+								],
+								max_tokens: 15,
+							});
+							const newTitle = titleCompletion.choices[0].message.content?.trim();
+							if (newTitle) await storage.updateSession(sessionId, { title: newTitle });
+						} catch (e) {
+							console.error("Failed to generate auto-title", e);
+						}
+					}
+				});
+			}
+
+			// Build conversation history
+			const sessionMessages = sessionId
+				? await storage.getChatMessages(req.userId, sessionId)
+				: [];
+			const conversationHistory = sessionMessages.slice(-10).map(msg => ({
+				role: msg.isBot ? "assistant" : "user",
+				content: msg.message
+			}));
+
+			// ===============================
+			// RAG: Search for relevant texts
+			// ===============================
+			let relevantTexts = [];
+			try {
+				relevantTexts = await searchRelevantTexts(message, 3);
+				if (relevantTexts.length > 0) {
+					console.log(`RAG: Found ${relevantTexts.length} relevant texts for query`);
+				}
+			} catch (ragError) {
+				console.log('RAG search skipped:', ragError.message);
+			}
+
+			// Detect if user is asking in English (for translation)
+			const needsTranslation = isEnglishQuery(message);
+			
+			// Build enhanced system prompt with RAG context
+			const systemPrompt = buildEnhancedPrompt(message, relevantTexts, needsTranslation);
+
+			// Set up SSE headers
+			res.setHeader("Content-Type", "text/event-stream");
+			res.setHeader("Cache-Control", "no-cache");
+			res.setHeader("Connection", "keep-alive");
+			res.setHeader("Access-Control-Allow-Origin", "*");
+			res.flushHeaders();
+
+			// Stream response from OpenAI
+			const stream = await openai.chat.completions.create({
+				model: "gpt-4o-mini",
+				messages: [
+					{ role: "system", content: systemPrompt },
+					...conversationHistory,
+					{ role: "user", content: message }
+				],
+				temperature: 0.7,
+				max_tokens: 800,
+				stream: true,
+			});
+
+			let fullResponse = "";
+
+			for await (const chunk of stream) {
+				const content = chunk.choices[0]?.delta?.content || "";
+				if (content) {
+					fullResponse += content;
+					res.write(`data: ${JSON.stringify({ content, done: false })}\n\n`);
+				}
+			}
+
+			// Save the complete bot message
+			const savedMessage = await storage.createChatMessage({
+				userId: req.userId,
+				message: fullResponse,
+				isBot: true,
+				sessionId,
+			});
+
+			// Send completion event with saved message ID
+			res.write(`data: ${JSON.stringify({ content: "", done: true, messageId: savedMessage.id })}\n\n`);
+			res.end();
+
+		} catch (error) {
+			console.error("Error in streaming chat:", error);
+			res.write(`data: ${JSON.stringify({ error: error.message || "Streaming failed" })}\n\n`);
+			res.end();
 		}
 	});
 
@@ -774,6 +965,212 @@ CUSTOM RULES:
 		} catch (error) {
 			console.error("Error deleting feedback:", error);
 			res.status(500).json({ message: "Failed to delete feedback" });
+		}
+	});
+
+	// ============================================
+	// PROFILE ROUTES
+	// ============================================
+
+	// Get full profile with stats
+	app.get("/api/profile", isAuthenticated, async (req, res) => {
+		try {
+			const [user, subscription, stats] = await Promise.all([
+				storage.getUser(req.userId),
+				storage.getUserSubscription(req.userId),
+				storage.getUserStats(req.userId)
+			]);
+
+			if (!user) {
+				return res.status(404).json({ message: "User not found" });
+			}
+
+			res.json({
+				...user,
+				subscription,
+				stats
+			});
+		} catch (error) {
+			console.error("Error fetching profile:", error);
+			res.status(500).json({ message: "Failed to fetch profile" });
+		}
+	});
+
+	// Update profile
+	app.put("/api/profile", isAuthenticated, async (req, res) => {
+		try {
+			const schema = z.object({
+				firstName: z.string().min(1).optional(),
+				lastName: z.string().min(1).optional(),
+				phone: z.string().optional(),
+				bio: z.string().max(500).optional(),
+				preferences: z.object({
+					language: z.enum(["en", "gu", "hi"]).optional(),
+					theme: z.enum(["light", "dark", "system"]).optional(),
+				}).optional(),
+				notificationPreferences: z.object({
+					dailyQuote: z.boolean().optional(),
+					chatComplete: z.boolean().optional(),
+					subscriptionReminders: z.boolean().optional(),
+					appUpdates: z.boolean().optional(),
+				}).optional(),
+			});
+
+			const data = schema.parse(req.body);
+			const user = await storage.updateUser(req.userId, data);
+
+			if (!user) {
+				return res.status(404).json({ message: "User not found" });
+			}
+
+			res.json(user);
+		} catch (error) {
+			console.error("Error updating profile:", error);
+			if (error instanceof z.ZodError) {
+				return res.status(400).json({ message: "Invalid input", errors: error.errors });
+			}
+			res.status(500).json({ message: "Failed to update profile" });
+		}
+	});
+
+	// Get user stats only
+	app.get("/api/profile/stats", isAuthenticated, async (req, res) => {
+		try {
+			const stats = await storage.getUserStats(req.userId);
+			if (!stats) {
+				return res.status(404).json({ message: "User not found" });
+			}
+			res.json(stats);
+		} catch (error) {
+			console.error("Error fetching stats:", error);
+			res.status(500).json({ message: "Failed to fetch stats" });
+		}
+	});
+
+	// ============================================
+	// SEARCH ROUTES (Advanced Search)
+	// ============================================
+
+	app.get("/api/search", isAuthenticated, async (req, res) => {
+		try {
+			const { q, type = "all", startDate, endDate, page = 1, limit = 20 } = req.query;
+
+			if (!q || q.length < 2) {
+				return res.status(400).json({ message: "Search query must be at least 2 characters" });
+			}
+
+			const results = await storage.unifiedSearch(req.userId, q, {
+				type,
+				startDate,
+				endDate,
+				page: parseInt(page),
+				limit: parseInt(limit)
+			});
+
+			res.json(results);
+		} catch (error) {
+			console.error("Error searching:", error);
+			res.status(500).json({ message: "Search failed" });
+		}
+	});
+
+	// ============================================
+	// NOTIFICATION ROUTES (OneSignal Push)
+	// ============================================
+
+	// Register OneSignal Player ID
+	app.post("/api/notifications/register", isAuthenticated, async (req, res) => {
+		try {
+			const { playerId } = req.body;
+			if (!playerId) {
+				return res.status(400).json({ message: "Player ID is required" });
+			}
+
+			await storage.updateOneSignalPlayerId(req.userId, playerId);
+			res.json({ message: "Player ID registered successfully" });
+		} catch (error) {
+			console.error("Error registering player ID:", error);
+			res.status(500).json({ message: "Failed to register player ID" });
+		}
+	});
+
+	// Get notification preferences
+	app.get("/api/notifications/preferences", isAuthenticated, async (req, res) => {
+		try {
+			const user = await storage.getUser(req.userId);
+			if (!user) {
+				return res.status(404).json({ message: "User not found" });
+			}
+			res.json({
+				preferences: user.notificationPreferences,
+				isRegistered: !!user.onesignalPlayerId
+			});
+		} catch (error) {
+			console.error("Error fetching notification preferences:", error);
+			res.status(500).json({ message: "Failed to fetch preferences" });
+		}
+	});
+
+	// Update notification preferences
+	app.put("/api/notifications/preferences", isAuthenticated, async (req, res) => {
+		try {
+			const schema = z.object({
+				dailyQuote: z.boolean().optional(),
+				chatComplete: z.boolean().optional(),
+				subscriptionReminders: z.boolean().optional(),
+				appUpdates: z.boolean().optional(),
+			});
+
+			const preferences = schema.parse(req.body);
+			const user = await storage.updateUser(req.userId, {
+				notificationPreferences: preferences
+			});
+
+			if (!user) {
+				return res.status(404).json({ message: "User not found" });
+			}
+
+			res.json({ preferences: user.notificationPreferences });
+		} catch (error) {
+			console.error("Error updating notification preferences:", error);
+			res.status(500).json({ message: "Failed to update preferences" });
+		}
+	});
+
+	// ============================================
+	// ENHANCED ADMIN ROUTES
+	// ============================================
+
+	// Get admin analytics
+	app.get("/api/admin/analytics", async (req, res) => {
+		const pin = req.headers["x-admin-pin"];
+		if (pin !== "7020") {
+			return res.status(401).json({ message: "Unauthorized" });
+		}
+
+		try {
+			const analytics = await storage.getAdminAnalytics();
+			res.json(analytics);
+		} catch (error) {
+			console.error("Error fetching analytics:", error);
+			res.status(500).json({ message: "Failed to fetch analytics" });
+		}
+	});
+
+	// Get all users (admin)
+	app.get("/api/admin/users", async (req, res) => {
+		const pin = req.headers["x-admin-pin"];
+		if (pin !== "7020") {
+			return res.status(401).json({ message: "Unauthorized" });
+		}
+
+		try {
+			const { page = 1, limit = 20, search } = req.query;
+			const result = await storage.getAllUsers(parseInt(page), parseInt(limit), { search });
+			res.json(result);
+		} catch (error) {
+			console.error("Error fetching users:", error);
+			res.status(500).json({ message: "Failed to fetch users" });
 		}
 	});
 

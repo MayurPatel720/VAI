@@ -7,6 +7,7 @@
 @tailwind utilities;
 
 /* LIGHT MODE */
+/* LIGHT MODE */
 :root {
   --button-outline: rgba(0, 0, 0, .10);
   --badge-outline: rgba(0, 0, 0, .05);
@@ -19,8 +20,9 @@
   --elevate-1: rgba(0, 0, 0, .03);
   --elevate-2: rgba(0, 0, 0, .08);
 
-  /* LIGHT MODE - Warm Spiritual Palette */
-  --background: 35 15% 97%;
+  /* LIGHT MODE - Warm Spiritual Palette (Refined for Premium Apple-like Feel) */
+  /* Background: Soft warm off-white, not too bright, not too gray */
+  --background: 36 25% 96%;
 
   --foreground: 30 10% 18%;
 
@@ -30,9 +32,9 @@
 
   --card-foreground: 30 10% 18%;
 
-  --card-border: 35 15% 90%;
+  --card-border: 35 15% 92%;
 
-  --sidebar: 35 18% 94%;
+  --sidebar: 36 25% 96%;
 
   --sidebar-foreground: 30 10% 18%;
 
@@ -42,23 +44,23 @@
 
   --sidebar-primary-foreground: 35 10% 98%;
 
-  --sidebar-accent: 35 20% 90%;
+  --sidebar-accent: 35 20% 92%;
 
   --sidebar-accent-foreground: 30 10% 20%;
 
   --sidebar-ring: 32 88% 48%;
 
-  --popover: 35 18% 92%;
+  --popover: 0 0% 100%;
 
   --popover-foreground: 30 10% 18%;
 
-  --popover-border: 35 15% 84%;
+  --popover-border: 35 15% 88%;
 
   --primary: 32 88% 48%;
 
   --primary-foreground: 35 10% 98%;
 
-  --secondary: 35 20% 88%;
+  --secondary: 35 20% 90%;
 
   --secondary-foreground: 30 10% 20%;
 
@@ -66,7 +68,7 @@
 
   --muted-foreground: 30 8% 40%;
 
-  --accent: 35 25% 86%;
+  --accent: 35 25% 90%;
 
   --accent-foreground: 30 10% 22%;
 
@@ -74,7 +76,7 @@
 
   --destructive-foreground: 0 5% 98%;
 
-  --input: 35 12% 75%;
+  --input: 35 12% 85%;
   --ring: 28 75% 42%;
   --chart-1: 28 75% 42%;
   --chart-2: 40 85% 38%;
@@ -280,6 +282,59 @@
       transition-duration: 0.01ms !important;
       scroll-behavior: auto !important;
     }
+  }
+
+  /* Custom Scrollbar Styling - Thin & Theme Matching */
+  /* Webkit browsers (Chrome, Safari, Edge) */
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: hsl(30 15% 25%);
+    border-radius: 9999px;
+    transition: background 0.2s ease;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(28 30% 35%);
+  }
+
+  /* Light mode scrollbar */
+  :root:not(.dark) ::-webkit-scrollbar-thumb {
+    background: hsl(35 10% 75%);
+  }
+
+  :root:not(.dark) ::-webkit-scrollbar-thumb:hover {
+    background: hsl(32 20% 60%);
+  }
+
+  /* Firefox scrollbar */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(30 15% 25%) transparent;
+  }
+
+  :root:not(.dark) * {
+    scrollbar-color: hsl(35 10% 75%) transparent;
+  }
+
+  /* Hide scrollbar when not scrolling (optional - more subtle) */
+  .scroll-thin::-webkit-scrollbar-thumb {
+    background: transparent;
+  }
+
+  .scroll-thin:hover::-webkit-scrollbar-thumb {
+    background: hsl(30 15% 25%);
+  }
+
+  .scroll-thin:hover::-webkit-scrollbar-thumb:hover {
+    background: hsl(28 30% 35%);
   }
 }
 

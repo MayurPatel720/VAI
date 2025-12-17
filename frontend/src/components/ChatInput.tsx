@@ -86,7 +86,7 @@ export default function ChatInput({ onSendMessage, disabled }: ChatInputProps) {
 					onInput={handleInput}
 					placeholder="Ask anything..."
 					disabled={disabled}
-					className="min-h-[44px] max-h-[200px] w-full resize-none border-0 bg-transparent py-3 px-4 text-base focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-muted-foreground/60 shadow-none scrollbar-hide"
+					className="min-h-[44px] max-h-[200px] w-full resize-none border-0 bg-transparent py-3 px-4 text-base focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-muted-foreground/60 shadow-none overflow-y-auto"
 					rows={1}
 				/>
 

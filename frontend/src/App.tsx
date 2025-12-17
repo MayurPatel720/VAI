@@ -23,7 +23,10 @@ import LegalPolicies from "./components/LegalPolicies";
 import Admin from "./pages/Admin";
 import Bookmarks from "./pages/Bookmarks";
 import PWAInstallPrompt from "./components/PWAInstallPrompt";
+import PushNotificationPrompt from "./components/PushNotificationPrompt";
 import SharedView from "./pages/SharedView";
+import Profile from "./pages/Profile";
+import Search from "./pages/Search";
 
 import { useAuth } from "./hooks/useAuth";
 import Test from "./pages/Test";
@@ -32,23 +35,60 @@ function RouterContent() {
 	const { isAuthenticated, isLoading } = useAuth();
 	const navigate = useNavigate();
 	const location = useLocation();
-	const [showIntro, setShowIntro] = useState(true);
+	// Check if intro should show: on first load OR after login
+	const [showIntro, setShowIntro] = useState(() => {
+		// Check for first-ever load OR post-login trigger
+		const isFirstLoad = !sessionStorage.getItem("introShown");
+		const isPostLogin = sessionStorage.getItem("showWelcomeIntro") === "true";
+		// Clear the flag immediately if it exists to prevent loops
+		if (isPostLogin) {
+			sessionStorage.removeItem("showWelcomeIntro");
+		}
+		return isFirstLoad || isPostLogin;
+	});
+
+	// Also check for welcome intro flag on location change (handles redirect)
+	useEffect(() => {
+		const isPostLogin = sessionStorage.getItem("showWelcomeIntro") === "true";
+		if (isPostLogin) {
+			sessionStorage.removeItem("showWelcomeIntro");
+			setShowIntro(true);
+		}
+	}, [location.pathname]);
 
 	// Intro animation timer
 	useEffect(() => {
+		if (!showIntro) return;
+		
 		const timer = setTimeout(() => {
 			setShowIntro(false);
-		}, 3100); // 5 seconds
+			sessionStorage.setItem("introShown", "true");
+		}, 3100); // 3.1 seconds
 
-		return () => clearTimeout(timer)
-	}, []);
+		return () => clearTimeout(timer);
+	}, [showIntro]);
+
+	// Minimum loading time to ensure animation is visible
+	const [minLoadingDone, setMinLoadingDone] = useState(false);
+	useEffect(() => {
+		// Only start timer if we're not showing intro (intro takes precedence)
+		if (showIntro) return;
+		
+		const timer = setTimeout(() => {
+			setMinLoadingDone(true);
+		}, 1500); // Minimum 1.5 seconds loading display
+
+		return () => clearTimeout(timer);
+	}, [showIntro]);
+
+	// Effective loading state: true if auth is loading OR minimum time hasn't passed
+	const effectiveLoading = isLoading || (!minLoadingDone && !showIntro);
 
 	useEffect(() => {
 		if (isLoading) return;
 
 		const publicPaths = ["/", "/login", "/register", "/legal", "/admin", "/share/"];
 		
-		// Check if path starts with /share/ (to handle dynamic tokens)
 		const isPublicShare = location.pathname.startsWith("/share/");
 
 		// ⬅️ protect only chat
@@ -62,8 +102,8 @@ function RouterContent() {
 		}
 	}, [isAuthenticated, isLoading, location.pathname, navigate]);
 
-	// Show intro animation during loading OR for first 5 seconds
-	if (isLoading || showIntro) {
+	// Show intro animation (Original Style: 3s, fill once, min-height)
+	if (showIntro) {
 		return (
 			<div className="intro-container">
 				<svg 
@@ -71,23 +111,10 @@ function RouterContent() {
 					viewBox="0 0 600 80" 
 					preserveAspectRatio="xMidYMid meet"
 				>
-					{/* Outline stroke text (always visible) */}
-					<text 
-						x="50%" 
-						y="55" 
-						textAnchor="middle"
-						className="text-outline"
-					>
+					<text x="50%" y="55" textAnchor="middle" className="text-outline">
 						Vachanamrut AI
 					</text>
-					
-					{/* Filled text (revealed with clip-path animation) */}
-					<text 
-						x="50%" 
-						y="55" 
-						textAnchor="middle"
-						className="text-fill"
-					>
+					<text x="50%" y="55" textAnchor="middle" className="text-fill">
 						Vachanamrut AI
 					</text>
 				</svg>
@@ -131,24 +158,88 @@ function RouterContent() {
 					}
 					
 					@keyframes fillText {
-						0% {
-							clip-path: inset(0 100% 0 0);
-						}
-						100% {
-							clip-path: inset(0 0% 0 0);
-						}
+						0% { clip-path: inset(0 100% 0 0); }
+						100% { clip-path: inset(0 0% 0 0); }
 					}
 					
-					/* Mobile responsive */
 					@media (max-width: 480px) {
-						.text-outline,
-						.text-fill {
-							font-size: 42px;
-						}
-						.intro-svg {
-							width: 98vw;
-							max-width: none;
-						}
+						.text-outline, .text-fill { font-size: 42px; }
+						.intro-svg { width: 98vw; max-width: none; }
+					}
+				`}</style>
+			</div>
+		);
+	}
+
+	// Show loading animation (New Style: infinite loop, fixed position, bigger text)
+	if (effectiveLoading) {
+		return (
+			<div className="loading-container">
+				<svg 
+					className="loading-svg"
+					viewBox="0 0 600 80" 
+					preserveAspectRatio="xMidYMid meet"
+				>
+					<text x="50%" y="55" textAnchor="middle" className="text-outline-loading">
+						Vachanamrut AI
+					</text>
+					<text x="50%" y="55" textAnchor="middle" className="text-fill-loading">
+						Vachanamrut AI
+					</text>
+				</svg>
+
+				<style>{`
+					@import url('https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&display=swap');
+					
+					.loading-container {
+						display: flex;
+						align-items: center;
+						justify-content: center;
+						position: fixed;
+						top: 0;
+						left: 0;
+						width: 100%;
+						height: 100%;
+						z-index: 9999;
+						background-color: #1a1a1a;
+						padding: 20px;
+					}
+					
+					.loading-svg {
+						width: 90vw;
+						max-width: 600px;
+						height: auto;
+					}
+					
+					.text-outline-loading {
+						font-family: 'Dancing Script', cursive;
+						font-size: 48px;
+						font-weight: 700;
+						fill: none;
+						stroke: #f97316;
+						stroke-width: 0.3;
+						stroke-linecap: round;
+						stroke-linejoin: round;
+					}
+					
+					.text-fill-loading {
+						font-family: 'Dancing Script', cursive;
+						font-size: 48px;
+						font-weight: 700;
+						fill: #f97316;
+						clip-path: inset(0 100% 0 0);
+						animation: fillTextLoading 2s ease-in-out infinite;
+					}
+					
+					@keyframes fillTextLoading {
+						0% { clip-path: inset(0 100% 0 0); }
+						50% { clip-path: inset(0 0% 0 0); }
+						100% { clip-path: inset(0 0% 0 0); }
+					}
+					
+					@media (max-width: 480px) {
+						.text-outline-loading, .text-fill-loading { font-size: 52px; }
+						.loading-svg { width: 98vw; max-width: none; }
 					}
 				`}</style>
 			</div>
@@ -219,6 +310,24 @@ function RouterContent() {
 			/>
 
 			<Route
+				path="/profile"
+				element={
+					<AnimatedPage>
+						<Profile />
+					</AnimatedPage>
+				}
+			/>
+
+			<Route
+				path="/search"
+				element={
+					<AnimatedPage>
+						<Search />
+					</AnimatedPage>
+				}
+			/>
+
+			<Route
 				path="*"
 				element={
 					<AnimatedPage>
@@ -243,6 +352,7 @@ function App() {
 			<TooltipProvider>
 				<Toaster />
 				<PWAInstallPrompt />
+				<PushNotificationPrompt />
 				<BrowserRouter>
 					<AnimatePresence mode="wait">
 						<RouterContent />

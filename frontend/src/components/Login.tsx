@@ -36,8 +36,11 @@ export default function Login() {
 					description: "Welcome back to your spiritual journey.",
 				});
 
-				await queryClient.invalidateQueries({ queryKey: ["user"] });
+				await queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
 
+				// Set flag to show welcome intro after redirect
+				sessionStorage.setItem("showWelcomeIntro", "true");
+				
 				setTimeout(() => {
 					navigate("/");
 				}, 500);
