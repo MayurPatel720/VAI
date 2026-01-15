@@ -1,3 +1,4 @@
+import React from "react";
 import { cn } from "../lib/utils";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -27,7 +28,7 @@ interface ChatMessageProps {
 	onRegenerate?: (messageId: string) => void;
 }
 
-export default function ChatMessage({
+function ChatMessage({
 	id,
 	message,
 	isBot,
@@ -114,11 +115,11 @@ export default function ChatMessage({
 				)}
 			>
 				<div
-					className={cn(
-						"flex max-w-[95%] md:max-w-[75%] gap-2 md:gap-3",
-						isBot ? "flex-row" : "flex-row-reverse"
-					)}
-				>
+				className={cn(
+					"flex w-full max-w-full md:max-w-[75%] gap-2 md:gap-3",
+					isBot ? "flex-row" : "flex-row-reverse"
+				)}
+			>
 					{/* Content Section */}
 					<div className={cn("flex flex-col min-w-0", isBot ? "items-start" : "items-end")}>
 						<div className={cn("flex items-center gap-2 mb-1", isBot ? "flex-row" : "flex-row-reverse")}>
@@ -259,3 +260,5 @@ export default function ChatMessage({
 		</>
 	);
 }
+
+export default React.memo(ChatMessage);

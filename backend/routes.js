@@ -7,6 +7,12 @@ const { z } = require("zod");
 const OpenAI = require("openai");
 const bcrypt = require("bcrypt");
 const { searchRelevantTexts, buildEnhancedPrompt, isEnglishQuery } = require("./services/rag");
+const { Logger } = require("./utils/logger");
+const { synthesizeSpeech, VOICE_OPTIONS } = require("./services/tts");
+const passport = require("./middleware/passport");
+
+
+const logger = new Logger('ROUTES');
 
 const openai = new OpenAI({
 	apiKey: process.env.OPENAI_API_KEY,
@@ -73,7 +79,7 @@ async function registerRoutes(app) {
 				},
 			});
 		} catch (error) {
-			console.error("Registration error:", error);
+			logger.error("Registration error", error);
 			if (error instanceof z.ZodError) {
 				return res
 					.status(400)
@@ -120,7 +126,7 @@ async function registerRoutes(app) {
 				},
 			});
 		} catch (error) {
-			console.error("Login error:", error);
+			logger.error("Login error", error);
 			if (error instanceof z.ZodError) {
 				return res
 					.status(400)
@@ -129,6 +135,30 @@ async function registerRoutes(app) {
 			res.status(500).json({ message: error.message || "Login failed" });
 		}
 	});
+
+	// Google OAuth Routes
+	app.get("/api/auth/google",
+		passport.authenticate('google', {
+			scope: ['profile', 'email']
+		})
+	);
+
+	app.get("/api/auth/google/callback",
+		passport.authenticate('google', { session: false }),
+		(req, res) => {
+			try {
+				const { token } = req.user;
+				
+				// Redirect to frontend with token - use CLIENT_URL from env
+				const clientURL = process.env.CLIENT_URL || "http://localhost:5173";
+				res.redirect(`${clientURL}/auth/callback?token=${token}`);
+			} catch (error) {
+				logger.error("Google OAuth callback error", error);
+				res.redirect(`${process.env.CLIENT_URL || "http://localhost:5173"}/login?error=oauth_failed`);
+			}
+		}
+	);
+
 
 	// Get current user
 	app.get("/api/auth/user", isAuthenticated, async (req, res) => {
@@ -176,7 +206,7 @@ async function registerRoutes(app) {
 
 			res.json({ message: "Password changed successfully" });
 		} catch (error) {
-			console.error("Password change error:", error);
+			logger.error("Password change error", error);
 			if (error instanceof z.ZodError) {
 				return res
 					.status(400)
@@ -218,7 +248,7 @@ async function registerRoutes(app) {
 				key: process.env.RAZORPAY_KEY_ID,
 			});
 		} catch (error) {
-			console.error("Error creating Razorpay order:", error);
+			logger.error("Error creating Razorpay order", error);
 			res
 				.status(500)
 				.json({ message: error.message || "Failed to create order" });
@@ -277,7 +307,7 @@ async function registerRoutes(app) {
 				subscription,
 			});
 		} catch (error) {
-			console.error("Error verifying payment:", error);
+			logger.error("Error verifying payment", error);
 			res
 				.status(500)
 				.json({ message: error.message || "Failed to verify payment" });
@@ -306,7 +336,7 @@ async function registerRoutes(app) {
 
 			res.json({ todayCount });
 		} catch (error) {
-			console.error("Error fetching usage:", error);
+			logger.error("Error fetching usage", error);
 			res.status(500).json({ message: "Failed to fetch usage" });
 		}
 	});
@@ -317,7 +347,7 @@ async function registerRoutes(app) {
 			const messages = await storage.getChatMessages(req.userId, sessionId);
 			res.json(messages);
 		} catch (error) {
-			console.error("Error fetching chat history:", error);
+			logger.error("Error fetching chat history", error);
 			res
 				.status(500)
 				.json({ message: error.message || "Failed to fetch chat history" });
@@ -474,7 +504,7 @@ CUSTOM RULES:
 
 			res.json(savedMessage);
 		} catch (error) {
-			console.error("Error processing chat message:", error);
+			logger.error("Error processing chat message", error);
 			res
 				.status(500)
 				.json({ message: error.message || "Failed to process message" });
@@ -559,10 +589,10 @@ CUSTOM RULES:
 			try {
 				relevantTexts = await searchRelevantTexts(message, 3);
 				if (relevantTexts.length > 0) {
-					console.log(`RAG: Found ${relevantTexts.length} relevant texts for query`);
+					logger.debug(`RAG: Found ${relevantTexts.length} relevant texts for query`);
 				}
 			} catch (ragError) {
-				console.log('RAG search skipped:', ragError.message);
+				logger.debug('RAG search skipped', { error: ragError.message });
 			}
 
 			// Detect if user is asking in English (for translation)
@@ -578,16 +608,16 @@ CUSTOM RULES:
 			res.setHeader("Access-Control-Allow-Origin", "*");
 			res.flushHeaders();
 
-			// Stream response from OpenAI
+			// Stream response from OpenAI - using GPT-4o for deeper, longer responses
 			const stream = await openai.chat.completions.create({
-				model: "gpt-4o-mini",
+				model: "gpt-4o",
 				messages: [
 					{ role: "system", content: systemPrompt },
 					...conversationHistory,
 					{ role: "user", content: message }
 				],
 				temperature: 0.7,
-				max_tokens: 800,
+				max_tokens: 4000,
 				stream: true,
 			});
 
@@ -614,7 +644,7 @@ CUSTOM RULES:
 			res.end();
 
 		} catch (error) {
-			console.error("Error in streaming chat:", error);
+			logger.error("Error in streaming chat", error);
 			res.write(`data: ${JSON.stringify({ error: error.message || "Streaming failed" })}\n\n`);
 			res.end();
 		}
@@ -670,6 +700,46 @@ CUSTOM RULES:
 		} catch (error) {
 			console.error("Error fetching active session:", error);
 			res.status(500).json({ message: "Failed to fetch active session" });
+		}
+	});
+
+	// ============================================
+	// TEXT-TO-SPEECH ENDPOINT (Google Cloud TTS)
+	// ============================================
+	app.post("/api/tts/synthesize", isAuthenticated, async (req, res) => {
+		try {
+			const { text, voice = 'male', speed = 1.0 } = req.body;
+			
+			if (!text || typeof text !== 'string') {
+				return res.status(400).json({ message: "Text is required" });
+			}
+			
+			// Limit text length to prevent abuse (approx 5000 chars = ~5 min speech)
+			if (text.length > 5000) {
+				return res.status(400).json({ 
+					message: "Text too long. Maximum 5000 characters allowed." 
+				});
+			}
+			
+			const audioBuffer = await synthesizeSpeech(text, voice, speed);
+			
+			// Return as base64 encoded audio
+			res.json({
+				audio: audioBuffer.toString('base64'),
+				contentType: 'audio/mp3'
+			});
+		} catch (error) {
+			logger.error("TTS synthesis error", error);
+			
+			// If Google Cloud TTS is not configured, return a helpful message
+			if (error.message.includes('not configured')) {
+				return res.status(503).json({ 
+					message: "TTS service not available. Please use browser voice.",
+					fallback: true
+				});
+			}
+			
+			res.status(500).json({ message: "Failed to synthesize speech" });
 		}
 	});
 

@@ -1,4 +1,9 @@
 const mongoose = require("mongoose");
+const { ObjectId } = require("mongodb");
+const { MongoClient } = require("mongodb");
+const { Logger } = require("./utils/logger");
+
+const logger = new Logger('DATABASE');
 
 // ============================================
 // SCHEMAS
@@ -149,9 +154,9 @@ class Storage {
 			await mongoose.connect(mongoUri);
 
 			this.isConnected = true;
-			console.log("✅ MongoDB connected successfully");
+			logger.success("MongoDB connected successfully");
 		} catch (error) {
-			console.error("❌ MongoDB connection error:", error);
+			logger.error("MongoDB connection error:", error);
 			throw error;
 		}
 	}

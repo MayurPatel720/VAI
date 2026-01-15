@@ -7,9 +7,12 @@ async function throwIfResNotOk(res: Response) {
 		throw new Error(`${res.status}: ${text}`);
 	}
 }
-// export const baseURL = "http://localhost:3000";
-export const baseURL = "https://vachanamrutai.onrender.com";
-console.log(baseURL);
+// Base URL for API requests  
+export const baseURL = "http://localhost:3000";
+// Production: https://vachanamrutai.onrender.com
+
+
+
 
 export async function apiRequest(method: string, url: string, data?: any) {
 	const token = localStorage.getItem("token");

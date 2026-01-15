@@ -27,6 +27,8 @@ import PushNotificationPrompt from "./components/PushNotificationPrompt";
 import SharedView from "./pages/SharedView";
 import Profile from "./pages/Profile";
 import Search from "./pages/Search";
+import OAuthCallback from "./pages/OAuthCallback";
+
 
 import { useAuth } from "./hooks/useAuth";
 import Test from "./pages/Test";
@@ -342,6 +344,9 @@ function RouterContent() {
 				}
 			/>
 			<Route path="/share/:token" element={<SharedView />} />
+		
+			{/* OAuth Callback Route */}
+			<Route path="/auth/callback" element={<OAuthCallback />} />
 		</Routes>
 	);
 }

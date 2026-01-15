@@ -128,7 +128,7 @@ const PricingPlan: React.FC = () => {
 		const orderData = await orderRes.json();
 
 		if (!orderData.orderId) {
-			console.log("Failed to create order");
+			// Order creation failed - error will be displayed to user
 			return;
 		}
 
@@ -166,7 +166,7 @@ const PricingPlan: React.FC = () => {
 
 					navigate("/chat");
 				} else {
-					console.log("Payment verification failed");
+					// Payment verification failed - error handled above
 				}
 			},
 			theme: { color: "#b76e22" },

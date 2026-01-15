@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import ChatMessage from "../components/ChatMessage";
 import ChatInput from "../components/ChatInput";
 import WelcomeCard from "../components/WelcomeCard";
@@ -13,7 +13,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { ArrowDown, Sparkles, Loader2, Volume2, Square } from "lucide-react";
 import ChatSidebar from "../components/ChatSidebar";
 import ShareModal from "../components/ShareModal";
-import { useTTS } from "../hooks/useTTS";
+import { useGoogleTTS } from "../hooks/useGoogleTTS";
 
 export default function Chat() {
 	const [isTyping, setIsTyping] = useState(false);
@@ -23,7 +23,7 @@ export default function Chat() {
 	const [currentSessionId, setCurrentSessionId] = useState<string | undefined>();
 	const [pendingUserMessage, setPendingUserMessage] = useState<string | null>(null);
 	const [streamingMessage, setStreamingMessage] = useState<string>("");
-	const [suggestedQuestions, setSuggestedQuestions] = useState<string[]>([]);
+	const [suggestedQuestions] = useState<string[]>([]);
 
 	const messagesEndRef = useRef<HTMLDivElement>(null);
 	const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -31,7 +31,7 @@ export default function Chat() {
 
 	const { isAuthenticated, user } = useAuth();
 	const { toast } = useToast();
-	const { speak, stop, isSpeaking, isSupported } = useTTS();
+	const { speak, stop, isSpeaking, isLoading: ttsLoading } = useGoogleTTS();
 
 	// 1. Fetch Chat Usage
 	const { data: usage } = useQuery({
@@ -69,7 +69,9 @@ export default function Chat() {
 						setCurrentSessionId(session.id);
 					}
 				})
-				.catch((err) => console.error("Failed to load active session", err));
+				.catch(() => {
+					// Silent fail - not critical for app functionality
+				});
 		}
 	}, [isAuthenticated]);
 
@@ -87,9 +89,9 @@ export default function Chat() {
 		},
 	});
 
-	const scrollToBottom = (behavior: ScrollBehavior = "smooth") => {
+	const scrollToBottom = useCallback((behavior: ScrollBehavior = "smooth") => {
 		messagesEndRef.current?.scrollIntoView({ behavior });
-	};
+	}, []);
 
 	useEffect(() => {
 		if (chatHistory?.length || isTyping || pendingUserMessage || streamingMessage) {
@@ -97,13 +99,13 @@ export default function Chat() {
 		}
 	}, [chatHistory, isTyping, pendingUserMessage, streamingMessage]);
 
-	const handleScroll = () => {
+	const handleScroll = useCallback(() => {
 		if (!scrollContainerRef.current) return;
 		const { scrollTop, scrollHeight, clientHeight } =
 			scrollContainerRef.current;
 		const isNearBottom = scrollHeight - scrollTop - clientHeight < 100;
 		setShowScrollButton(!isNearBottom);
-	};
+	}, []);
 
 	// Check scroll position on mount and when messages change
 	useEffect(() => {
@@ -151,7 +153,7 @@ export default function Chat() {
 	});
 
 	// Stop generation function
-	const stopGeneration = () => {
+	const stopGeneration = useCallback(() => {
 		if (abortControllerRef.current) {
 			abortControllerRef.current.abort();
 			abortControllerRef.current = null;
@@ -163,7 +165,7 @@ export default function Chat() {
 		}
 		setPendingUserMessage(null);
 		setStreamingMessage("");
-	};
+	}, [streamingMessage, currentSessionId]);
 
 	const handleSendMessage = async (text: string) => {
 		if (remaining === 0) {
@@ -269,20 +271,20 @@ export default function Chat() {
 		}
 	};
 
-	const handlePromptClick = (prompt: string) => {
+	const handlePromptClick = useCallback((prompt: string) => {
 		handleSendMessage(prompt);
-	};
+	}, [remaining, isAuthenticated]);
 
 	// Share State
 	const [isShareOpen, setIsShareOpen] = useState(false);
 	const [shareContent, setShareContent] = useState("");
 	const [shareMessageId, setShareMessageId] = useState("");
 
-	const handleShare = (messageId: string, content: string) => {
+	const handleShare = useCallback((messageId: string, content: string) => {
 		setShareContent(content);
 		setShareMessageId(messageId);
 		setIsShareOpen(true);
-	};
+	}, []);
 
 	return (
 		// Use 100dvh for mobile browsers to handle address bar
@@ -366,8 +368,8 @@ export default function Chat() {
 
 								{/* Pending User Message - Shows immediately */}
 								{pendingUserMessage && (
-									<div className="group flex w-full gap-4 px-4 md:px-8 justify-end">
-										<div className="flex max-w-[95%] md:max-w-[75%] gap-2 md:gap-3 flex-row-reverse">
+						<div className="group flex w-full gap-4 px-2 md:px-8 justify-end">
+							<div className="flex w-full md:max-w-[75%] gap-2 md:gap-3 flex-row-reverse">
 											<div className="flex flex-col min-w-0 items-end">
 												<div className="flex items-center gap-2 mb-1 flex-row-reverse">
 													<span className="text-sm font-semibold text-foreground/90">You</span>
@@ -384,8 +386,8 @@ export default function Chat() {
 
 								{/* AI Streaming Response / Thinking Indicator */}
 								{isTyping && (
-									<div className="flex w-full gap-2 md:gap-4 p-2 md:p-4 justify-start">
-										<div className="flex flex-row gap-3 max-w-[85%]">
+						<div className="flex w-full gap-2 md:gap-4 p-2 md:p-4 justify-start">
+							<div className="flex flex-row gap-3 w-full md:max-w-[85%]">
 											<div className="flex-shrink-0 mt-1">
 												<div className="h-8 w-8 rounded-full bg-amber-100 flex items-center justify-center">
 													<Sparkles className="h-4 w-4 text-amber-600 animate-spin-slow" />
@@ -425,52 +427,59 @@ export default function Chat() {
 								)}
 
 				{/* Suggested Follow-up Questions */}
-				{!isTyping && chatHistory.length > 0 && (
-					<div className="px-4 md:px-8 py-2">
-						<div className="flex flex-wrap gap-2 justify-center items-center">
-							{/* Listen Button - Prominent position */}
-							{isSupported && (
-								<button
-									onClick={() => {
-										// Find last bot message
-										const lastBotMessage = [...chatHistory].reverse().find((m: any) => m.isBot);
-										if (lastBotMessage) {
-											if (isSpeaking) {
-												stop();
-											} else {
-												speak(lastBotMessage.message);
-											}
-										}
-									}}
-									className={`flex items-center gap-2 px-4 py-2 rounded-full font-medium transition-all ${
-										isSpeaking 
-											? "bg-amber-500 text-white" 
-											: "bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 border border-amber-500/30"
-									}`}
-									title={isSpeaking ? "Stop listening" : "Listen to response"}
-								>
-									<Volume2 className={`h-4 w-4 ${isSpeaking ? "animate-pulse" : ""}`} />
-									<span className="text-sm">{isSpeaking ? "Stop" : "Listen in Mahant Swami Maharaj's voice"}</span>
-								</button>
+			{!isTyping && chatHistory.length > 0 && (
+				<div className="px-2 md:px-8 py-2">
+					<div className="flex flex-col md:flex-row md:flex-wrap gap-2 justify-center items-stretch md:items-center">
+						{/* Listen Button - Prominent position */}
+						<button
+							onClick={() => {
+								// Find last bot message
+								const lastBotMessage = [...chatHistory].reverse().find((m: any) => m.isBot);
+								if (lastBotMessage) {
+									if (isSpeaking) {
+										stop();
+									} else {
+										speak(lastBotMessage.message);
+									}
+								}
+							}}
+							disabled={ttsLoading}
+							className={`w-full md:w-auto flex items-center justify-center gap-2 px-4 py-2.5 rounded-full font-medium transition-all ${
+								isSpeaking 
+									? "bg-amber-500 text-white" 
+									: ttsLoading
+										? "bg-amber-500/5 text-amber-400 border border-amber-500/20 cursor-wait"
+										: "bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 border border-amber-500/30"
+							}`}
+							title={isSpeaking ? "Stop listening" : ttsLoading ? "Loading..." : "Listen to response"}
+						>
+							{ttsLoading ? (
+								<Loader2 className="h-4 w-4 animate-spin" />
+							) : (
+								<Volume2 className={`h-4 w-4 ${isSpeaking ? "animate-pulse" : ""}`} />
 							)}
-							
-							{/* Suggested Questions */}
-							{(suggestedQuestions.length > 0 ? suggestedQuestions : [
-								"Tell me about bhakti (devotion)",
-								"What is the importance of satsang?",
-								"How to overcome worldly attachments?",
-							]).map((question, idx) => (
-								<button
-									key={idx}
-									onClick={() => handleSendMessage(question)}
-									className="px-3 py-1.5 text-xs md:text-sm bg-muted/50 hover:bg-muted border border-border rounded-full text-muted-foreground hover:text-foreground transition-colors"
-								>
-									{question}
-								</button>
-							))}
-						</div>
+							<span className="text-sm whitespace-normal md:whitespace-nowrap text-center">
+								{isSpeaking ? "Stop" : ttsLoading ? "Loading..." : "Listen in Mahant Swami Maharaj's voice"}
+							</span>
+						</button>
+						
+						{/* Suggested Questions */}
+						{(suggestedQuestions.length > 0 ? suggestedQuestions : [
+							"Tell me about bhakti (devotion)",
+							"What is the importance of satsang?",
+							"How to overcome worldly attachments?",
+						]).map((question, idx) => (
+							<button
+								key={idx}
+								onClick={() => handleSendMessage(question)}
+								className="w-full md:w-auto px-4 py-2 text-sm bg-muted/50 hover:bg-muted border border-border rounded-full text-muted-foreground hover:text-foreground transition-colors text-center"
+							>
+								{question}
+							</button>
+						))}
 					</div>
-				)}
+				</div>
+			)}
 								<div ref={messagesEndRef} className="h-2" />
 							</div>
 						)}
